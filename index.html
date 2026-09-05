@@ -8,8 +8,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Fari Money Assistant</title>
   <link rel="manifest" href="manifest.json" />
-  <link rel="icon" href="favicon-v4.png?v=10" />
-  <link rel="apple-touch-icon" href="apple-touch-icon-v4.png?v=10" />
+  <link rel="icon" href="favicon-v4.png?v=11" />
+  <link rel="apple-touch-icon" href="apple-touch-icon-v4.png?v=11" />
   <script>
     (function(){
       var mobileUA=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
@@ -30,12 +30,12 @@
       };
     })();
   </script>
-  <link rel="stylesheet" href="style.css?v=10.0.0" />
+  <link rel="stylesheet" href="style.css?v=11.0.0" />
 </head>
 <body>
   <div class="auth-gate" id="authGate">
     <div class="auth-card">
-      <div class="auth-visual"><img class="auth-wallpaper" src="login-wallpaper-hd.jpg?v=10" alt="Fari Money Assistant"></div>
+      <div class="auth-visual"><img class="auth-wallpaper" src="login-wallpaper-hd.jpg?v=11" alt="Fari Money Assistant"></div>
       
       <p class="auth-welcome">Your personal money guide for smarter spending, debt freedom, urgent goals and better financial decisions.</p>
       <div class="auth-actions" id="authActions">
@@ -50,6 +50,7 @@
         <div id="gateLoginStatus" class="auth-status" aria-live="polite"></div>
         <button class="primary" id="gateLoginSubmit" type="submit">Login</button>
         <button class="auth-back" type="button" data-auth-back>← Back</button>
+        <button class="auth-offline" id="gateOfflineAfterError" type="button" style="display:none">Open app offline</button>
       </form>
       <form class="auth-panel" id="gateCreatePanel">
         <h3>Create Your Account ♥</h3>
@@ -226,6 +227,6 @@
     <button data-view="settings">⚙️ Settings & Backup</button>
   </div>
   <div class="toast" id="toast"></div>
-    <script src="app.js?v=10.0.0"></script>
+    <script src="app.js?v=11.0.0"></script>
 </body>
 </html>

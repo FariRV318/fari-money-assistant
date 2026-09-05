@@ -1,7 +1,7 @@
-const KEY='fariMoneyAssistant_v10';
+const KEY='fariMoneyAssistant_v11';
 const SUPABASE_URL='https://hbvtnzcoranwctfggraj.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_9hoA3bVLyLlMwRGM08ZD9Q_RvTFXeFp';
-const LEGACY_KEYS=['fariMoneyAssistant_v9','fariMoneyAssistant_v8','fariMoneyAssistant_v4','fariMoneyAssistant_v3','fariMoneyAssistant_v1'];
+const LEGACY_KEYS=['fariMoneyAssistant_v10','fariMoneyAssistant_v9','fariMoneyAssistant_v8','fariMoneyAssistant_v4','fariMoneyAssistant_v3','fariMoneyAssistant_v1'];
 const defaultState={
   income:{fixed:0,side:0,trading:0,other:0,essential:0,buffer:0},
   transactions:[],debts:[],goals:[],credits:[],
@@ -181,18 +181,36 @@ $('#exportBtn').onclick=()=>{const blob=new Blob([JSON.stringify(state,null,2)],
 function initSupabase(){
   // Direct Supabase REST/Auth client. This removes the external CDN dependency,
   // which can be blocked/cached on some Android browsers and was preventing login.
-  const SESSION_KEY='fariMoneySupabaseSession_v10';
+  const SESSION_KEY='fariMoneySupabaseSession_v11';
   const listeners=[];
   const readSession=()=>{try{return JSON.parse(localStorage.getItem(SESSION_KEY)||'null')}catch{return null}};
   const writeSession=(session)=>{if(session)localStorage.setItem(SESSION_KEY,JSON.stringify(session));else localStorage.removeItem(SESSION_KEY)};
   const notify=(event,session)=>listeners.forEach(fn=>{try{fn(event,session)}catch{}});
-  const headers=(token,extra={})=>({apikey:SUPABASE_PUBLISHABLE_KEY,'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{Authorization:`Bearer ${SUPABASE_PUBLISHABLE_KEY}`}),...extra});
-  async function request(url,opts={}){
+  // Supabase auth endpoints need the publishable key in `apikey`.
+  // Do NOT send the new sb_publishable_ key as a Bearer token before login.
+  const headers=(token,extra={})=>({
+    apikey:SUPABASE_PUBLISHABLE_KEY,
+    'Content-Type':'application/json',
+    ...(token?{Authorization:`Bearer ${token}`}:{ }),
+    ...extra
+  });
+  async function request(url,opts={},timeoutMs=12000){
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),timeoutMs);
     try{
-      const r=await fetch(url,opts);let body=null;try{body=await r.json()}catch{}
-      if(!r.ok){return {data:null,error:{message:body?.msg||body?.message||body?.error_description||body?.error||`Request failed (${r.status})`},status:r.status}}
+      const r=await fetch(url,{...opts,signal:controller.signal,cache:'no-store'});
+      let body=null;
+      try{body=await r.json()}catch{}
+      if(!r.ok){
+        return {data:null,error:{message:body?.msg||body?.message||body?.error_description||body?.error||`Request failed (${r.status})`},status:r.status};
+      }
       return {data:body,error:null,status:r.status};
-    }catch(err){return {data:null,error:{message:`Connection failed: ${err?.message||'network error'}`},status:0}}
+    }catch(err){
+      const message=err?.name==='AbortError'
+        ? 'Supabase connection timed out. Check your internet connection and try again.'
+        : `Connection failed: ${err?.message||'network error'}`;
+      return {data:null,error:{message},status:0};
+    }finally{clearTimeout(timer)}
   }
   async function refreshIfNeeded(){
     let session=readSession(); if(!session)return null;
@@ -206,7 +224,11 @@ function initSupabase(){
   sb={
     auth:{
       async signInWithPassword({email,password}){
-        const res=await request(`${SUPABASE_URL}/auth/v1/token?grant_type=password`,{method:'POST',headers:headers(),body:JSON.stringify({email,password})});
+        const url=`${SUPABASE_URL}/auth/v1/token?grant_type=password`;
+        const opts={method:'POST',headers:headers(),body:JSON.stringify({email,password})};
+        let res=await request(url,opts,12000);
+        // One clean retry helps on mobile when the first TLS/DNS connection is slow.
+        if(res.status===0) res=await request(url,opts,12000);
         if(res.error)return {data:null,error:res.error};
         writeSession(res.data);notify('SIGNED_IN',res.data);return {data:res.data,error:null};
       },
@@ -270,7 +292,16 @@ $('#txnDate').value=new Date().toISOString().slice(0,10);$('#goalDeadline').valu
       // Cloud data loading happens after entry so a slow table request can never block login.
       cloudLoad().catch(err=>console.warn('Cloud load:',err));
     }catch(err){if(status){status.className='auth-status error';status.textContent=err?.message||'Login failed. Please try again.'}}
-    finally{if(btn){btn.disabled=false;btn.textContent='Login'}}
+    finally{
+      if(btn){btn.disabled=false;btn.textContent='Login'}
+      const offline=document.getElementById('gateOfflineAfterError');
+      if(offline && status?.classList.contains('error')) offline.style.display='block';
+    }
+  });
+  document.getElementById('gateOfflineAfterError')?.addEventListener('click',()=>{
+    sessionStorage.setItem('fariMoneyEntered','1');
+    gate.classList.add('hidden');
+    toast('Opened offline — cloud sync will reconnect when Supabase is available');
   });
   createPanel?.addEventListener('submit',async e=>{
     e.preventDefault();

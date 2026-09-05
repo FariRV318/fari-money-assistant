@@ -225,3 +225,9 @@ html.force-mobile .close{min-width:46px!important;width:46px!important;height:46
  .auth-panel{padding:18px!important;border-radius:18px!important}
  .auth-panel input{min-height:52px!important;font-size:16px!important}
 }
+
+/* v11 auth reliability */
+.auth-offline{width:100%;min-height:48px;margin-top:10px;border:1px solid #e8b9c7;border-radius:14px;background:#fff7fa;color:#8e3d5a;font-weight:800;font-size:15px}
+#gateLoginSubmit:disabled{opacity:.75;cursor:wait}
+.auth-status.error{display:block;color:#a61b48;background:#fff0f5;border:1px solid #f4c5d3;border-radius:10px;padding:9px 10px;margin:8px 0;font-size:14px;font-weight:700}
+.auth-status.working{display:block;color:#0b766d;font-size:14px;font-weight:800;margin:8px 0}
