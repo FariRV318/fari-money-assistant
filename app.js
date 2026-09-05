@@ -309,6 +309,8 @@ async function authHealthCheck(){
 
 // Premium entry/login experience
 (function initEntryGate(){
+  // v14: login gate disabled; app opens directly.
+  if(!document.getElementById('authGate')) return;
   const gate=document.getElementById('authGate');
   const actions=document.getElementById('authActions');
   const loginPanel=document.getElementById('gateLoginPanel');

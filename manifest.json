@@ -3,7 +3,7 @@
   "short_name": "Fari Money",
   "description": "Smart AED expense, debt and personal money management assistant by Fari-RV.",
   "id": "./?v=6",
-  "start_url": "./?v=13",
+  "start_url": "./?v=14",
   "scope": "./",
   "display": "standalone",
   "background_color": "#fff3f7",
