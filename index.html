@@ -10,7 +10,7 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" href="favicon.png" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=3.0.0" />
 </head>
 <body>
   <div class="auth-gate" id="authGate">
@@ -158,16 +158,16 @@
       </section>
 
       <section class="view" id="account-view">
-        <div class="section-intro"><div><span class="eyebrow">Your secure money space</span><h2>Account & Login</h2><p>Use the app locally now. Supabase login and cloud sync are built into the interface and activate once your project URL and publishable key are added.</p></div></div>
+        <div class="section-intro"><div><span class="eyebrow">Your secure money space</span><h2>Account & Login</h2><p>Your Supabase project is connected. Sign in to keep the same debts, goals, transactions and plans synced across your devices.</p></div></div>
         <div class="account-hero">
           <img src="icon-192.png" alt="App icon">
-          <div><h3>Fari Money Assistant</h3><p>One plan, every device. Your login can later keep the same debts, goals and monthly roadmap synced on phone, tablet and desktop.</p><span class="sync-pill" id="syncStatus">LOCAL MODE</span></div>
+          <div><h3>Fari Money Assistant</h3><p>One plan, every device. Sign in to keep your debts, goals and monthly roadmap synced on phone, tablet and desktop.</p><span class="sync-pill" id="syncStatus">LOCAL MODE</span></div>
         </div>
         <div class="grid-2">
           <article class="card"><h3>Sign in</h3><form id="loginForm" class="form-grid"><label class="span-2">Email<input id="loginEmail" type="email" required placeholder="you@example.com"></label><label class="span-2">Password<input id="loginPassword" type="password" required minlength="6" placeholder="••••••••"></label><button class="primary span-2">Login</button></form><p class="small-note">If Supabase is not configured yet, this page stays safely in local mode.</p></article>
           <article class="card"><h3>Create account</h3><form id="signupForm" class="form-grid"><label class="span-2">Name<input id="signupName" placeholder="Fari"></label><label class="span-2">Email<input id="signupEmail" type="email" required></label><label class="span-2">Password<input id="signupPassword" type="password" required minlength="6"></label><button class="secondary span-2">Create Account</button></form></article>
         </div>
-        <article class="card"><h3>Supabase connection</h3><p class="small-note">Paste these later from Supabase → Project Settings → API. Your publishable/anon key is designed for client apps when Row Level Security is configured correctly.</p><form id="supabaseConfigForm" class="form-grid"><label class="span-2">Project URL<input id="supabaseUrl" placeholder="https://xxxx.supabase.co"></label><label class="span-2">Publishable / anon key<input id="supabaseKey" type="password" placeholder="sb_publishable_..."></label><button class="primary span-2">Save Supabase Connection</button></form></article>
+        <article class="card cloud-ready"><h3>☁️ Cloud Sync Ready</h3><p class="small-note">This version is already connected to your Supabase project. Run the included <strong>supabase-setup.sql</strong> once, then create an account or log in.</p><div class="assistant-box"><strong>Automatic sync</strong><br>Your money data is saved locally immediately and synced to your private Supabase record whenever you are logged in.</div><button class="secondary" id="logoutBtn" type="button">Log out</button></article>
       </section>
 
       <section class="view" id="settings-view">
@@ -191,6 +191,6 @@
 
   <div class="toast" id="toast"></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js"></script>
+  <script src="app.js?v=3.0.0"></script>
 </body>
 </html>

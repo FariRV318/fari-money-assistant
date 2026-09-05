@@ -1,24 +1,17 @@
-# Fari Money Assistant v2.1
+# Fari Money Assistant v3
 
-Premium mobile-first AED money management assistant created by Fari-RV ♥
+Created by Fari-RV ♥
 
-## Included
-- Smart monthly money planning
-- Multi-month Debt Freedom Roadmap
-- Fixed EMI vs flexible debt prioritization
-- Pay-together friend/family debt scheduling
-- Editable debt and revolving-credit entries
-- Urgent goal/deadline planner
-- Can I Afford This? (full payment / Tabby / Tamara / custom installments)
-- Revolving credit / Tabby Card cycle planning
-- Attractive entry login / create-account / guest screen
-- Supabase-ready account and sync configuration
-- Local auto-save, backup and restore
-- Professional PWA icons for phone, tablet and desktop
-- Consistent teal, blush-pink and gold premium theme on every page
+## One-time Supabase setup
+1. Open your existing Supabase project.
+2. Go to SQL Editor → New query.
+3. Paste the contents of `supabase-setup.sql` and click **Run** once.
+4. If email confirmation is enabled under Authentication, confirm the signup email before first login.
 
-## GitHub Pages
-Upload all files to the repository root, then enable GitHub Pages from the main branch/root folder.
+## GitHub Pages upload
+Upload the files in this ZIP directly to the root of the `fari-money-assistant` repository. Do not put them inside another folder.
 
-## Supabase
-Continue as Guest first, open Account & Login, then add your Supabase Project URL and publishable/anon key. Real cloud tables/RLS setup can be connected in the next implementation step.
+Recommended Pages setting: Settings → Pages → Deploy from a branch → `main` → `/(root)`.
+
+## Important cache note
+This version uses a new cache identifier and network-first page loading to replace older GitHub Pages/PWA versions. After deployment, refresh once. If an old installed PWA is still open, close it fully and reopen.

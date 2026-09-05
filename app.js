@@ -1,9 +1,11 @@
-const KEY='fariMoneyAssistant_v2';
+const KEY='fariMoneyAssistant_v3';
+const SUPABASE_URL='https://hbvtnzcoranwctfggraj.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY='sb_publishable_9hoA3bVLyLlMwRGM08ZD9Q_RvTFXeFp';
 const LEGACY_KEY='fariMoneyAssistant_v1';
 const defaultState={
   income:{fixed:0,side:0,trading:0,other:0,essential:0,buffer:0},
   transactions:[],debts:[],goals:[],credits:[],
-  account:{name:'Fari',email:'',supabaseUrl:'',supabaseKey:''}
+  account:{name:'Fari',email:''}
 };
 let state=load();
 let editingDebtId=null, editingCreditId=null;
@@ -100,7 +102,7 @@ function renderTransactions(){const q=$('#txnSearch')?.value?.toLowerCase()||'',
 function renderDebts(){const p=buildPlan();const road=buildRoadmap();$('#debtCards').innerHTML=state.debts.length?state.debts.map(d=>{const alloc=p.allocations.find(a=>a.id===d.id);const wholeMonth=d.pieces===false?road.rows.find(m=>m.payments.some(x=>x.kind==='whole'&&x.name===d.name)):null;const pct=Math.min(100,Math.max(3,(+d.monthly/Math.max(+d.balance,1))*100));return `<article class="mini-card"><span class="chip ${d.priority}">${d.fixed?'FIXED EMI':d.pieces===false?'PAY TOGETHER':'FLEXIBLE'}</span><h3>${esc(d.name)}</h3><p>${esc(d.type)}${d.interest?` • ${d.rate}% interest`:''}</p><strong>${money(d.balance)} remaining</strong><div class="progress"><span style="width:${pct}%"></span></div><p>Normal payment: ${money(d.monthly)}${d.pieces===false?' • No partial payments':''}</p><p class="assistant-mini">${d.pieces===false?(wholeMonth?`Assistant: keep this aside and pay ${esc(d.name)} in full in <strong>${wholeMonth.label}</strong>.`:'Assistant: not safely fundable in the current roadmap yet.'):`Assistant this month: <strong>${money(alloc?.amount||0)}</strong>`}</p><div class="actions"><button onclick="recordDebtPayment('${d.id}')">Record payment</button><button onclick="editDebt('${d.id}')">Edit</button><button class="remove" onclick="removeItem('debts','${d.id}')">Delete</button></div></article>`}).join(''):'<div class="empty-state">Add your loans, BNPL, friend/family debts and fixed EMIs.</div>'}
 function renderGoals(){const p=buildPlan();$('#goalCards').innerHTML=state.goals.length?state.goals.map(g=>{const gp=p.goalPlans.find(x=>x.id===g.id),pct=Math.min(100,(+g.saved/+g.amount)*100);return `<article class="mini-card"><span class="chip ${g.priority}">${g.priority.toUpperCase()}</span><h3>${esc(g.name)}</h3><p>Deadline: ${esc(g.deadline)} • ${daysUntil(g.deadline)} days left</p><strong>${money(Math.max(0,+g.amount-+g.saved))} still needed</strong><div class="progress"><span style="width:${pct}%"></span></div><p>Recommended reservation: <strong>${money(gp?.monthly||0)} / month</strong></p><div class="actions"><button onclick="addGoalSaving('${g.id}')">Add saving</button><button class="remove" onclick="removeItem('goals','${g.id}')">Delete</button></div></article>`}).join(''):'<div class="empty-state">Add important requirements such as a course, visa fee, laptop, medical cost or family payment.</div>'}
 function renderCredits(){const p=buildPlan();$('#creditCards').innerHTML=state.credits.length?state.credits.map(c=>{const room=Math.max(0,p.free);let reuseRec=+c.reuse||0;if(room>+c.payment*.75)reuseRec=Math.max(0,reuseRec-Math.min(reuseRec,room*.5));const net=Math.max(0,+c.payment-reuseRec-(+c.fee||0));const months=net>0?Math.ceil(+c.balance/net):Infinity;const exit=reuseRec===0?'You can aim to stop reusing credit now.':`Recommended reuse this month: about ${money(reuseRec)}. Reduce reuse before increasing other flexible spending.`;return `<article class="mini-card"><span class="chip ${reuseRec===0?'good':'high'}">${reuseRec===0?'EXIT MODE':'REVOLVING'}</span><h3>${esc(c.name)}</h3><strong>${money(c.balance)} outstanding</strong><p>Typical payment ${money(c.payment)} • monthly cost ${money(c.fee)} • typical reuse ${money(c.reuse)}</p><p class="assistant-mini">${exit}</p><p>Net reduction about <strong>${money(net)}</strong> this month.${isFinite(months)?` Approx. ${months} month(s) to clear if maintained.`:''}</p><div class="actions"><button onclick="recordCreditPayment('${c.id}')">Record cycle</button><button onclick="editCredit('${c.id}')">Edit</button><button class="remove" onclick="removeItem('credits','${c.id}')">Delete</button></div></article>`}).join(''):'<div class="empty-state">Add Tabby Card, a credit card or another account where you repay and reuse available credit.</div>'}
-function renderAccount(){const a=state.account||{};$('#supabaseUrl').value=a.supabaseUrl||'';$('#supabaseKey').value=a.supabaseKey||'';$('#loginEmail').value=a.email||'';const status=$('#syncStatus');if(sb){status.textContent=a.email?'SUPABASE READY':'SUPABASE CONNECTED';status.className='sync-pill connected'}else{status.textContent='LOCAL MODE';status.className='sync-pill'}}
+function renderAccount(){const a=state.account||{};if($('#loginEmail'))$('#loginEmail').value=a.email||'';const status=$('#syncStatus');if(status){if(sb){status.textContent=a.email?'CLOUD SYNC ACTIVE':'SUPABASE CONNECTED';status.className='sync-pill connected'}else{status.textContent='CONNECTION ERROR';status.className='sync-pill'}}}
 function renderAll(){renderDashboard();renderPlan();renderTransactions();renderDebts();renderGoals();renderCredits();renderAccount()}
 
 window.removeItem=(kind,id)=>{if(!confirm('Delete this item?'))return;state[kind]=state[kind].filter(x=>x.id!==id);save();toast('Deleted')};
@@ -123,14 +125,13 @@ $('#affordForm').onsubmit=e=>{e.preventDefault();const p=buildPlan(),name=$('#af
 $('#txnSearch').oninput=renderTransactions;$('#txnTypeFilter').onchange=renderTransactions;
 $('#exportBtn').onclick=()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`fari-money-backup-${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(a.href)};$('#importFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{state={...cloneDefault(),...JSON.parse(r.result)};save();toast('Backup restored')}catch{alert('Invalid backup file')}};r.readAsText(f)};$('#resetBtn').onclick=()=>{if(confirm('This will permanently erase all local data. Continue?')){state=cloneDefault();save();toast('All data reset')}};
 
-function initSupabase(){const a=state.account||{};if(!a.supabaseUrl||!a.supabaseKey||!window.supabase){sb=null;return}try{sb=window.supabase.createClient(a.supabaseUrl,a.supabaseKey)}catch{sb=null}}
+function initSupabase(){if(!window.supabase){sb=null;return}try{sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}})}catch{sb=null}}
 async function cloudSave(){if(!sb)return;const {data:{user}}=await sb.auth.getUser();if(!user)return;await sb.from('money_profiles').upsert({user_id:user.id,data:state,updated_at:new Date().toISOString()},{onConflict:'user_id'})}
 async function cloudLoad(){if(!sb)return;const {data:{user}}=await sb.auth.getUser();if(!user)return;const {data}=await sb.from('money_profiles').select('data').eq('user_id',user.id).maybeSingle();if(data?.data){state={...cloneDefault(),...data.data,account:{...state.account,...(data.data.account||{})}};localStorage.setItem(KEY,JSON.stringify(state));renderAll();toast('Cloud data loaded')}}
-$('#supabaseConfigForm').onsubmit=e=>{e.preventDefault();state.account.supabaseUrl=$('#supabaseUrl').value.trim();state.account.supabaseKey=$('#supabaseKey').value.trim();localStorage.setItem(KEY,JSON.stringify(state));initSupabase();renderAccount();toast(sb?'Supabase connection saved':'Connection details saved')};
-$('#loginForm').onsubmit=async e=>{e.preventDefault();if(!sb){toast('Add Supabase connection first');return}const email=$('#loginEmail').value.trim(),password=$('#loginPassword').value;const {error}=await sb.auth.signInWithPassword({email,password});if(error){alert(error.message);return}state.account.email=email;localStorage.setItem(KEY,JSON.stringify(state));await cloudLoad();renderAccount();toast('Logged in')};
-$('#signupForm').onsubmit=async e=>{e.preventDefault();if(!sb){toast('Add Supabase connection first');return}const name=$('#signupName').value.trim()||'Fari',email=$('#signupEmail').value.trim(),password=$('#signupPassword').value;const {error}=await sb.auth.signUp({email,password,options:{data:{name}}});if(error){alert(error.message);return}state.account.name=name;state.account.email=email;localStorage.setItem(KEY,JSON.stringify(state));renderAccount();toast('Account created — check email if confirmation is enabled')};
+$('#loginForm').onsubmit=async e=>{e.preventDefault();if(!sb){toast('Cloud connection is unavailable. Please refresh and try again.');return}const email=$('#loginEmail').value.trim(),password=$('#loginPassword').value;const {error}=await sb.auth.signInWithPassword({email,password});if(error){alert(error.message);return}state.account.email=email;localStorage.setItem(KEY,JSON.stringify(state));await cloudLoad();renderAccount();toast('Logged in — cloud sync active ♥')};
+$('#signupForm').onsubmit=async e=>{e.preventDefault();if(!sb){toast('Cloud connection is unavailable. Please refresh and try again.');return}const name=$('#signupName').value.trim()||'Fari',email=$('#signupEmail').value.trim(),password=$('#signupPassword').value;const {error}=await sb.auth.signUp({email,password,options:{data:{name}}});if(error){alert(error.message);return}state.account.name=name;state.account.email=email;localStorage.setItem(KEY,JSON.stringify(state));renderAccount();toast('Account created — check your email if confirmation is enabled')};
 
-$('#txnDate').value=new Date().toISOString().slice(0,10);$('#goalDeadline').value=new Date(Date.now()+30*86400000).toISOString().slice(0,10);$('#todayText').textContent=new Date().toLocaleDateString('en-AE',{weekday:'long',day:'numeric',month:'long',year:'numeric'});initSupabase();renderAll();if(sb)cloudLoad().catch(()=>{});if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+$('#txnDate').value=new Date().toISOString().slice(0,10);$('#goalDeadline').value=new Date(Date.now()+30*86400000).toISOString().slice(0,10);$('#todayText').textContent=new Date().toLocaleDateString('en-AE',{weekday:'long',day:'numeric',month:'long',year:'numeric'});initSupabase();renderAll();if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').then(r=>r.update()).catch(()=>{});
 
 // Premium entry/login experience
 (function initEntryGate(){
@@ -149,15 +150,24 @@ $('#txnDate').value=new Date().toISOString().slice(0,10);$('#goalDeadline').valu
     const email=document.getElementById('gateLoginEmail').value.trim(),password=document.getElementById('gateLoginPassword').value;
     const {error}=await sb.auth.signInWithPassword({email,password});
     if(error){alert(error.message);return}
-    state.account.email=email;localStorage.setItem(KEY,JSON.stringify(state));sessionStorage.setItem('fariMoneyEntered','1');gate.classList.add('hidden');renderAccount();toast('Welcome back ♥');
+    state.account.email=email;localStorage.setItem(KEY,JSON.stringify(state));await cloudLoad();sessionStorage.setItem('fariMoneyEntered','1');gate.classList.add('hidden');renderAccount();toast('Welcome back — cloud sync active ♥');
   });
   createPanel?.addEventListener('submit',async e=>{
     e.preventDefault();
     if(!sb){toast('Supabase is not connected yet. Continue as Guest, then open Account & Login to add your Supabase details.');return}
     const name=document.getElementById('gateSignupName').value.trim(),email=document.getElementById('gateSignupEmail').value.trim(),password=document.getElementById('gateSignupPassword').value;
-    const {error}=await sb.auth.signUp({email,password,options:{data:{name}}});
+    const {data,error}=await sb.auth.signUp({email,password,options:{data:{name}}});
     if(error){alert(error.message);return}
-    state.account.name=name||'Fari';state.account.email=email;localStorage.setItem(KEY,JSON.stringify(state));sessionStorage.setItem('fariMoneyEntered','1');gate.classList.add('hidden');renderAccount();toast('Account created ♥');
+    state.account.name=name||'Fari';state.account.email=email;localStorage.setItem(KEY,JSON.stringify(state));
+    if(data?.session){await cloudSave();sessionStorage.setItem('fariMoneyEntered','1');gate.classList.add('hidden');renderAccount();toast('Account created — cloud sync active ♥');}
+    else{toast('Account created. Confirm your email, then log in ♥');show(loginPanel);document.getElementById('gateLoginEmail').value=email;}
   });
-  if(sessionStorage.getItem('fariMoneyEntered')==='1') gate.classList.add('hidden');
+  (async()=>{
+    if(!sb)return;
+    const {data:{session}}=await sb.auth.getSession();
+    if(session?.user){state.account.email=session.user.email||state.account.email;state.account.name=session.user.user_metadata?.name||state.account.name;localStorage.setItem(KEY,JSON.stringify(state));await cloudLoad();sessionStorage.setItem('fariMoneyEntered','1');gate.classList.add('hidden');renderAccount();}
+    sb.auth.onAuthStateChange(async(event,session)=>{if(event==='SIGNED_OUT'){state.account.email='';localStorage.setItem(KEY,JSON.stringify(state));sessionStorage.removeItem('fariMoneyEntered');gate.classList.remove('hidden');actions.style.display='grid';loginPanel.classList.remove('open');createPanel.classList.remove('open');renderAccount();}else if(session?.user){state.account.email=session.user.email||state.account.email;localStorage.setItem(KEY,JSON.stringify(state));renderAccount();}});
+  })();
 })();
+
+const logoutBtn=document.getElementById('logoutBtn');if(logoutBtn)logoutBtn.onclick=async()=>{if(sb)await sb.auth.signOut();else{sessionStorage.removeItem('fariMoneyEntered');document.getElementById('authGate')?.classList.remove('hidden')}};
