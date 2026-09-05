@@ -3,19 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#07665f" />
+  <meta name="theme-color" content="#0b766d" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Fari Money Assistant</title>
   <link rel="manifest" href="manifest.json" />
-  <link rel="icon" href="favicon.png" />
-  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
-  <link rel="stylesheet" href="style.css?v=3.0.0" />
+  <link rel="icon" href="favicon-v4.png?v=5" />
+  <link rel="apple-touch-icon" href="apple-touch-icon-v4.png?v=5" />
+  <link rel="stylesheet" href="style.css?v=5.0.0" />
 </head>
 <body>
   <div class="auth-gate" id="authGate">
     <div class="auth-card">
-      <img class="auth-logo" src="icon-512.png" alt="Fari Money Assistant">
+      <div class="auth-visual"><img class="auth-wallpaper" src="login-wallpaper.png?v=5" alt="Fari Money Assistant"><img class="auth-logo" src="icon-v4-512.png?v=5" alt="Fari Money Assistant"><div class="auth-visual-note">Good money choices create a brighter you ♥</div></div>
       <h1 class="auth-title">Fari Money Assistant</h1>
       <p class="auth-tagline">Plan Today ♥ A Brighter Tomorrow</p>
       <p class="auth-welcome">Your personal money guide for smarter spending, debt freedom, urgent goals and better financial decisions.</p>
@@ -47,7 +47,7 @@
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
       <div class="brand">
-        <img class="brand-logo" src="icon-192.png" alt="Fari Money Assistant">
+        <img class="brand-logo" src="icon-v4-192.png?v=5" alt="Fari Money Assistant">
         <div><strong>Fari Money</strong><span>Assistant</span></div>
       </div>
       <nav id="nav">
@@ -189,8 +189,23 @@
 
   <div class="modal" id="creditModal"><div class="modal-card"><div class="modal-head"><h3>Add Revolving Credit</h3><button class="close">×</button></div><form id="creditForm" class="form-grid"><label>Account name<input id="creditName" required placeholder="Tabby Card"></label><label>Outstanding balance<input id="creditBalance" type="number" min="1" step="0.01" required placeholder="5000"></label><label>Typical monthly payment<input id="creditPayment" type="number" min="0" step="0.01" required placeholder="1200"></label><label>Monthly fee / cost<input id="creditFee" type="number" min="0" step="0.01" value="60"></label><label>Typical amount reused<input id="creditReuse" type="number" min="0" step="0.01" value="1200"></label><label>Desired payoff month<input id="creditTarget" type="month"></label><button class="primary span-2" id="creditSubmitBtn">Save Revolving Account</button></form></div></div>
 
+  <nav class="mobile-bottom-nav" id="mobileBottomNav" aria-label="Mobile navigation">
+    <button class="mb-nav active" data-view="dashboard"><span>⌂</span><small>Home</small></button>
+    <button class="mb-nav" data-view="plan"><span>▣</span><small>Plan</small></button>
+    <button class="mb-nav mb-add" id="mobileAdd"><span>＋</span><small>Add</small></button>
+    <button class="mb-nav" data-view="debts"><span>▢</span><small>Debts</small></button>
+    <button class="mb-nav" id="mobileMore"><span>☰</span><small>More</small></button>
+  </nav>
+  <div class="mobile-more-sheet" id="mobileMoreSheet">
+    <button data-view="transactions">💳 Transactions</button>
+    <button data-view="goals">🎯 Urgent Goals</button>
+    <button data-view="afford">🛍️ Can I Afford This?</button>
+    <button data-view="credit">🔁 Revolving Credit</button>
+    <button data-view="account">👤 Account</button>
+    <button data-view="settings">⚙️ Settings & Backup</button>
+  </div>
   <div class="toast" id="toast"></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=3.0.0"></script>
+  <script src="app.js?v=5.0.0"></script>
 </body>
 </html>
