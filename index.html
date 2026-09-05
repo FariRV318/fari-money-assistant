@@ -10,18 +10,38 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" href="favicon-v4.png?v=6" />
   <link rel="apple-touch-icon" href="apple-touch-icon-v4.png?v=6" />
-  <link rel="stylesheet" href="style.css?v=6.0.0" />
+  <script>
+    (function(){
+      var mobileUA=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+      var smallScreen=Math.min(screen.width||9999,screen.height||9999)<=768;
+      if(mobileUA||smallScreen) document.documentElement.classList.add('force-mobile');
+      window.openEntryPanel=function(kind){
+        var actions=document.getElementById('authActions');
+        var login=document.getElementById('gateLoginPanel');
+        var create=document.getElementById('gateCreatePanel');
+        if(!actions||!login||!create)return;
+        actions.style.display='none'; login.classList.remove('open'); create.classList.remove('open');
+        (kind==='create'?create:login).classList.add('open');
+        setTimeout(function(){(kind==='create'?create:login).scrollIntoView({behavior:'smooth',block:'center'});},50);
+      };
+      window.enterMoneyGuest=function(){
+        sessionStorage.setItem('fariMoneyEntered','1');
+        var gate=document.getElementById('authGate'); if(gate) gate.classList.add('hidden');
+      };
+    })();
+  </script>
+  <link rel="stylesheet" href="style.css?v=9.0.0" />
 </head>
 <body>
   <div class="auth-gate" id="authGate">
     <div class="auth-card">
-      <div class="auth-visual"><img class="auth-wallpaper" src="login-wallpaper-hd.jpg?v=8" alt="Fari Money Assistant"></div>
+      <div class="auth-visual"><img class="auth-wallpaper" src="login-wallpaper-hd.jpg?v=9" alt="Fari Money Assistant"></div>
       
       <p class="auth-welcome">Your personal money guide for smarter spending, debt freedom, urgent goals and better financial decisions.</p>
       <div class="auth-actions" id="authActions">
-        <button class="auth-login-btn" id="gateLoginBtn">👤 Login</button>
-        <button class="auth-create-btn" id="gateCreateBtn">Create Account</button>
-        <button class="auth-guest-btn" id="gateGuestBtn">Continue as Guest ›</button>
+        <button type="button" class="auth-login-btn" id="gateLoginBtn" onclick="openEntryPanel('login')">👤 Login</button>
+        <button type="button" class="auth-create-btn" id="gateCreateBtn" onclick="openEntryPanel('create')">Create Account</button>
+        <button type="button" class="auth-guest-btn" id="gateGuestBtn" onclick="enterMoneyGuest()">Continue as Guest ›</button>
       </div>
       <form class="auth-panel" id="gateLoginPanel">
         <h3>Welcome Back ♥</h3>
@@ -205,6 +225,6 @@
   </div>
   <div class="toast" id="toast"></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=5.0.0"></script>
+  <script src="app.js?v=9.0.0"></script>
 </body>
 </html>
