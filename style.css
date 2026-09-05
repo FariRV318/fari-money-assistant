@@ -212,3 +212,16 @@ html.force-mobile .close{min-width:46px!important;width:46px!important;height:46
   main{width:100%!important;max-width:none!important;box-sizing:border-box!important}
   .auth-visual{width:calc(100% + 32px)!important;max-width:none!important}
 }
+/* v10 login reliability + true mobile viewport */
+.auth-status{min-height:22px;margin:2px 0 8px;font-size:14px;font-weight:700;text-align:center;color:#47615e}.auth-status.error{color:#b42351}.auth-status.working{color:#08796f}.auth-panel button:disabled{opacity:.7;cursor:wait}
+@media (max-width: 768px){
+ html,body{width:100%!important;max-width:none!important;min-width:0!important;margin:0!important;padding:0!important;overflow-x:hidden!important}
+ .auth-gate{position:fixed!important;inset:0!important;width:100vw!important;max-width:none!important;min-width:0!important;overflow-y:auto!important;padding:0!important;margin:0!important;background:linear-gradient(180deg,#ffe9ef 0%,#fff7f8 48%,#effcf9 100%)!important}
+ .auth-card{width:100%!important;max-width:none!important;min-height:100dvh!important;margin:0!important;border-radius:0!important;padding:0 0 max(24px,env(safe-area-inset-bottom))!important;box-shadow:none!important;background:linear-gradient(180deg,#fff1f4 0%,#fff9f9 55%,#f1fbf8 100%)!important}
+ .auth-visual{width:100%!important;margin:0!important;padding:0!important;border-radius:0!important;overflow:hidden!important;background:#fce8eb!important}
+ .auth-wallpaper{display:block!important;width:100%!important;height:auto!important;max-height:54dvh!important;object-fit:cover!important;object-position:center top!important;border-radius:0!important}
+ .auth-welcome,.auth-actions,.auth-panel,.auth-quote,.auth-credit{width:calc(100% - 28px)!important;max-width:none!important;margin-left:14px!important;margin-right:14px!important}
+ .auth-actions button,.auth-panel .primary,.auth-panel .auth-back{min-height:52px!important;font-size:16px!important;border-radius:14px!important}
+ .auth-panel{padding:18px!important;border-radius:18px!important}
+ .auth-panel input{min-height:52px!important;font-size:16px!important}
+}

@@ -1,7 +1,7 @@
-const KEY='fariMoneyAssistant_v9';
+const KEY='fariMoneyAssistant_v10';
 const SUPABASE_URL='https://hbvtnzcoranwctfggraj.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_9hoA3bVLyLlMwRGM08ZD9Q_RvTFXeFp';
-const LEGACY_KEYS=['fariMoneyAssistant_v8','fariMoneyAssistant_v4','fariMoneyAssistant_v3','fariMoneyAssistant_v1'];
+const LEGACY_KEYS=['fariMoneyAssistant_v9','fariMoneyAssistant_v8','fariMoneyAssistant_v4','fariMoneyAssistant_v3','fariMoneyAssistant_v1'];
 const defaultState={
   income:{fixed:0,side:0,trading:0,other:0,essential:0,buffer:0},
   transactions:[],debts:[],goals:[],credits:[],
@@ -178,10 +178,68 @@ $('#affordForm').onsubmit=e=>{e.preventDefault();const p=buildPlan(),name=$('#af
 $('#txnSearch').oninput=renderTransactions;$('#txnTypeFilter').onchange=renderTransactions;
 $('#exportBtn').onclick=()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`fari-money-backup-${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(a.href)};$('#importFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{state={...cloneDefault(),...JSON.parse(r.result)};save();toast('Backup restored')}catch{alert('Invalid backup file')}};r.readAsText(f)};$('#resetBtn').onclick=()=>{if(confirm('This will permanently erase all local data. Continue?')){state=cloneDefault();save();toast('All data reset')}};
 
-function initSupabase(){if(!window.supabase){sb=null;return}try{sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}})}catch{sb=null}}
+function initSupabase(){
+  // Direct Supabase REST/Auth client. This removes the external CDN dependency,
+  // which can be blocked/cached on some Android browsers and was preventing login.
+  const SESSION_KEY='fariMoneySupabaseSession_v10';
+  const listeners=[];
+  const readSession=()=>{try{return JSON.parse(localStorage.getItem(SESSION_KEY)||'null')}catch{return null}};
+  const writeSession=(session)=>{if(session)localStorage.setItem(SESSION_KEY,JSON.stringify(session));else localStorage.removeItem(SESSION_KEY)};
+  const notify=(event,session)=>listeners.forEach(fn=>{try{fn(event,session)}catch{}});
+  const headers=(token,extra={})=>({apikey:SUPABASE_PUBLISHABLE_KEY,'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{Authorization:`Bearer ${SUPABASE_PUBLISHABLE_KEY}`}),...extra});
+  async function request(url,opts={}){
+    try{
+      const r=await fetch(url,opts);let body=null;try{body=await r.json()}catch{}
+      if(!r.ok){return {data:null,error:{message:body?.msg||body?.message||body?.error_description||body?.error||`Request failed (${r.status})`},status:r.status}}
+      return {data:body,error:null,status:r.status};
+    }catch(err){return {data:null,error:{message:`Connection failed: ${err?.message||'network error'}`},status:0}}
+  }
+  async function refreshIfNeeded(){
+    let session=readSession(); if(!session)return null;
+    const expiresAt=Number(session.expires_at||0)*1000;
+    if(expiresAt && Date.now()<expiresAt-60000)return session;
+    if(!session.refresh_token)return session;
+    const res=await request(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`,{method:'POST',headers:headers(),body:JSON.stringify({refresh_token:session.refresh_token})});
+    if(res.error){writeSession(null);notify('SIGNED_OUT',null);return null}
+    session=res.data;writeSession(session);notify('TOKEN_REFRESHED',session);return session;
+  }
+  sb={
+    auth:{
+      async signInWithPassword({email,password}){
+        const res=await request(`${SUPABASE_URL}/auth/v1/token?grant_type=password`,{method:'POST',headers:headers(),body:JSON.stringify({email,password})});
+        if(res.error)return {data:null,error:res.error};
+        writeSession(res.data);notify('SIGNED_IN',res.data);return {data:res.data,error:null};
+      },
+      async signUp({email,password,options={}}){
+        const payload={email,password,data:options.data||{}};
+        const res=await request(`${SUPABASE_URL}/auth/v1/signup`,{method:'POST',headers:headers(),body:JSON.stringify(payload)});
+        if(res.error)return {data:null,error:res.error};
+        const session=res.data?.access_token?res.data:null;if(session){writeSession(session);notify('SIGNED_IN',session)}
+        return {data:{user:res.data?.user||res.data,session},error:null};
+      },
+      async getSession(){const session=await refreshIfNeeded();return {data:{session},error:null}},
+      async getUser(){const session=await refreshIfNeeded();if(!session?.access_token)return {data:{user:null},error:null};const res=await request(`${SUPABASE_URL}/auth/v1/user`,{headers:headers(session.access_token)});return {data:{user:res.data},error:res.error}},
+      async signOut(){const session=readSession();if(session?.access_token)await request(`${SUPABASE_URL}/auth/v1/logout`,{method:'POST',headers:headers(session.access_token)});writeSession(null);notify('SIGNED_OUT',null);return {error:null}},
+      onAuthStateChange(fn){listeners.push(fn);return {data:{subscription:{unsubscribe(){const i=listeners.indexOf(fn);if(i>=0)listeners.splice(i,1)}}}}}
+    },
+    from(table){
+      return {
+        async upsert(row,{onConflict}={}){
+          const session=await refreshIfNeeded();if(!session?.access_token)return {data:null,error:{message:'Please log in again.'}};
+          const qs=onConflict?`?on_conflict=${encodeURIComponent(onConflict)}`:'';
+          return request(`${SUPABASE_URL}/rest/v1/${encodeURIComponent(table)}${qs}`,{method:'POST',headers:headers(session.access_token,{Prefer:'resolution=merge-duplicates,return=representation'}),body:JSON.stringify(row)});
+        },
+        select(cols){
+          let filter='';
+          return {eq(col,val){filter=`&${encodeURIComponent(col)}=eq.${encodeURIComponent(val)}`;return {async maybeSingle(){const session=await refreshIfNeeded();if(!session?.access_token)return {data:null,error:{message:'Please log in again.'}};const res=await request(`${SUPABASE_URL}/rest/v1/${encodeURIComponent(table)}?select=${encodeURIComponent(cols)}${filter}&limit=1`,{headers:headers(session.access_token,{Accept:'application/vnd.pgrst.object+json'})});if(res.status===406)return {data:null,error:null};return res}}}};
+        }
+      }
+    }
+  };
+}
 async function cloudSave(){if(!sb)return;const {data:{user}}=await sb.auth.getUser();if(!user)return;await sb.from('money_profiles').upsert({user_id:user.id,data:state,updated_at:new Date().toISOString()},{onConflict:'user_id'})}
 async function cloudLoad(){if(!sb)return;const {data:{user}}=await sb.auth.getUser();if(!user)return;const {data}=await sb.from('money_profiles').select('data').eq('user_id',user.id).maybeSingle();if(data?.data){state={...cloneDefault(),...data.data,account:{...state.account,...(data.data.account||{})}};localStorage.setItem(KEY,JSON.stringify(state));renderAll();toast('Cloud data loaded')}}
-$('#loginForm').onsubmit=async e=>{e.preventDefault();if(!sb){toast('Cloud connection is unavailable. Please refresh and try again.');return}const email=$('#loginEmail').value.trim(),password=$('#loginPassword').value;const {error}=await sb.auth.signInWithPassword({email,password});if(error){alert(error.message);return}state.account.email=email;localStorage.setItem(KEY,JSON.stringify(state));await cloudLoad();renderAccount();toast('Logged in — cloud sync active ♥')};
+$('#loginForm').onsubmit=async e=>{e.preventDefault();if(!sb){toast('Cloud connection is unavailable. Please refresh and try again.');return}const email=$('#loginEmail').value.trim(),password=$('#loginPassword').value;const {error}=await sb.auth.signInWithPassword({email,password});if(error){alert(error.message);return}state.account.email=email;localStorage.setItem(KEY,JSON.stringify(state));renderAccount();toast('Logged in ♥');cloudLoad().catch(()=>{})};
 $('#signupForm').onsubmit=async e=>{e.preventDefault();if(!sb){toast('Cloud connection is unavailable. Please refresh and try again.');return}const name=$('#signupName').value.trim()||'Fari',email=$('#signupEmail').value.trim(),password=$('#signupPassword').value;const {error}=await sb.auth.signUp({email,password,options:{data:{name}}});if(error){alert(error.message);return}state.account.name=name;state.account.email=email;localStorage.setItem(KEY,JSON.stringify(state));renderAccount();toast('Account created — check your email if confirmation is enabled')};
 
 $('#txnDate').value=new Date().toISOString().slice(0,10);$('#goalDeadline').value=new Date(Date.now()+30*86400000).toISOString().slice(0,10);$('#todayText').textContent=new Date().toLocaleDateString('en-AE',{weekday:'long',day:'numeric',month:'long',year:'numeric'});initSupabase();renderAll();if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').then(r=>r.update()).catch(()=>{});
@@ -199,11 +257,20 @@ $('#txnDate').value=new Date().toISOString().slice(0,10);$('#goalDeadline').valu
   document.getElementById('gateGuestBtn')?.addEventListener('click',()=>{sessionStorage.setItem('fariMoneyEntered','1');gate.classList.add('hidden')});
   loginPanel?.addEventListener('submit',async e=>{
     e.preventDefault();
-    if(!sb){toast('Supabase is not connected yet. Continue as Guest, then open Account & Login to add your Supabase details.');return}
+    const status=document.getElementById('gateLoginStatus'),btn=document.getElementById('gateLoginSubmit');
     const email=document.getElementById('gateLoginEmail').value.trim(),password=document.getElementById('gateLoginPassword').value;
-    const {error}=await sb.auth.signInWithPassword({email,password});
-    if(error){alert(error.message);return}
-    state.account.email=email;localStorage.setItem(KEY,JSON.stringify(state));await cloudLoad();sessionStorage.setItem('fariMoneyEntered','1');gate.classList.add('hidden');renderAccount();toast('Welcome back — cloud sync active ♥');
+    if(!email||!password){if(status)status.textContent='Please enter your email and password.';return}
+    if(!sb){if(status)status.textContent='Connection setup failed. Refresh the page and try again.';return}
+    if(status){status.className='auth-status working';status.textContent='Signing you in…'};if(btn){btn.disabled=true;btn.textContent='Signing in…'}
+    try{
+      const {error}=await sb.auth.signInWithPassword({email,password});
+      if(error){if(status){status.className='auth-status error';status.textContent=error.message};return}
+      state.account.email=email;localStorage.setItem(KEY,JSON.stringify(state));
+      sessionStorage.setItem('fariMoneyEntered','1');gate.classList.add('hidden');renderAccount();renderAll();toast('Welcome back ♥');
+      // Cloud data loading happens after entry so a slow table request can never block login.
+      cloudLoad().catch(err=>console.warn('Cloud load:',err));
+    }catch(err){if(status){status.className='auth-status error';status.textContent=err?.message||'Login failed. Please try again.'}}
+    finally{if(btn){btn.disabled=false;btn.textContent='Login'}}
   });
   createPanel?.addEventListener('submit',async e=>{
     e.preventDefault();
