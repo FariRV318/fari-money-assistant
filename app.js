@@ -1,7 +1,7 @@
-const KEY='fariMoneyAssistant_v4';
+const KEY='fariMoneyAssistant_v8';
 const SUPABASE_URL='https://hbvtnzcoranwctfggraj.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_9hoA3bVLyLlMwRGM08ZD9Q_RvTFXeFp';
-const LEGACY_KEYS=['fariMoneyAssistant_v3','fariMoneyAssistant_v1'];
+const LEGACY_KEYS=['fariMoneyAssistant_v4','fariMoneyAssistant_v3','fariMoneyAssistant_v1'];
 const defaultState={
   income:{fixed:0,side:0,trading:0,other:0,essential:0,buffer:0},
   transactions:[],debts:[],goals:[],credits:[],
@@ -46,13 +46,13 @@ function buildPlan(){
  for(const d of flex){if(remaining<=0)break;if(d.pieces===false)continue;let desired=Math.min(+d.monthly||0,+d.balance);let min=Math.min(+d.minimum||0,+d.balance);let amt=remaining>=desired?desired:Math.min(remaining,Math.max(min,remaining*.45));amt=Math.max(0,amt);if(amt){allocations.push({type:'Flexible debt',name:d.name,amount:amt,priority:d.priority,id:d.id});remaining-=amt}}
  // Whole-payment debts with a preferred month become protected sinking-fund targets.
  const currentKey=monthKey(nowMonth());
- for(const d of flex.filter(x=>x.pieces===false&&x.targetMonth).sort((a,b)=>a.targetMonth.localeCompare(b.targetMonth)||debtPriorityScore(b)-debtPriorityScore(a))){
+ for(const d of flex.filter(x=>x.pieces===false&&(x.targetDate||x.targetMonth)).sort((a,b)=>(a.targetDate||a.targetMonth).localeCompare(b.targetDate||b.targetMonth)||debtPriorityScore(b)-debtPriorityScore(a))){
    if(remaining<=0)break;
-   const td=new Date(d.targetMonth+'-01T12:00:00');
+   const raw=d.targetDate||(d.targetMonth+'-01'); const td=new Date(raw+'T12:00:00'); const targetKey=raw.slice(0,7);
    const monthsLeft=Math.max(1,(td.getFullYear()-nowMonth().getFullYear())*12+(td.getMonth()-nowMonth().getMonth())+1);
-   const neededNow=d.targetMonth<=currentKey?+d.balance:(+d.balance/monthsLeft);
+   const neededNow=targetKey<=currentKey?+d.balance:(+d.balance/monthsLeft);
    const amt=Math.min(+d.balance,Math.max(0,remaining),neededNow);
-   if(amt>0){allocations.push({type:d.targetMonth<=currentKey?'Whole debt payment':'Target debt reserve',name:d.name,amount:amt,priority:'Target '+monthLabel(td),id:d.id});remaining-=amt}
+   if(amt>0){allocations.push({type:targetKey<=currentKey?'Whole debt payment':'Final-date debt reserve',name:d.name,amount:amt,priority:'Due '+td.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}),id:d.id});remaining-=amt}
  }
  // Whole-payment debts without a chosen month are suggested only when the full balance fits.
  for(const d of flex.filter(x=>x.pieces===false&&!(x.targetDate||x.targetMonth))){if(remaining>=+d.balance){allocations.push({type:'Whole debt payment',name:d.name,amount:+d.balance,priority:d.priority,id:d.id});remaining-=+d.balance}}
@@ -80,9 +80,6 @@ function buildRoadmap(maxMonths=18){
    const fee=+c.fee||0; const net=Math.max(0,gross-recommendedReuse-fee);
    if(gross>0){c.balance=Math.max(0,c.balance-net);available-=gross;payments.push({name:c.name,amount:gross,kind:'credit',note:recommendedReuse>1?`reuse ~${money(recommendedReuse)}`:'stop reuse'})}
   }
-  for(const g of goals.filter(x=>x.saved<x.amount).sort((a,b)=>goalRank(b.priority)-goalRank(a.priority)||new Date(a.deadline)-new Date(b.deadline))){
-   const deadline=new Date(g.deadline+'T12:00:00');const deadlineMonth=new Date(deadline.getFullYear(),deadline.getMonth(),1);const monthsLeft=Math.max(1,Math.round((deadlineMonth-date)/(30.44*86400000))+1);const need=g.amount-g.saved;const req=Math.min(need,need/monthsLeft,Math.max(0,available));if(req>0){g.saved+=req;available-=req;payments.push({name:g.name,amount:req,kind:'goal'})}
-  }
   // Whole-payment debts with a preferred month are treated as real deadlines.
   for(const d of debts.filter(x=>!x.fixed&&x.pieces===false&&x.balance>0&&(x.targetDate||x.targetMonth)).sort((a,b)=>(a.targetDate||a.targetMonth||'9999-99').localeCompare(b.targetDate||b.targetMonth||'9999-99')||debtPriorityScore(b)-debtPriorityScore(a))){
     const targetRaw=d.targetDate||(d.targetMonth?d.targetMonth+'-01':''); const targetDate=new Date(targetRaw+'T12:00:00'); const targetKey=targetRaw.slice(0,7);
@@ -90,11 +87,11 @@ function buildRoadmap(maxMonths=18){
       const monthsLeft=Math.max(1,(targetDate.getFullYear()-date.getFullYear())*12+(targetDate.getMonth()-date.getMonth())+1);
       const need=Math.max(0,d.balance-d.reserved);
       const reserve=Math.min(Math.max(0,available),need/monthsLeft);
-      if(reserve>0){d.reserved+=reserve;available-=reserve;payments.push({name:d.name,amount:reserve,kind:'whole-reserve',note:`reserve for ${monthLabel(targetDate)}`})}
+      if(reserve>0){d.reserved+=reserve;available-=reserve;payments.push({name:d.name,amount:reserve,kind:'whole-reserve',note:`reserve • final ${targetDate.toLocaleDateString('en-GB',{day:'numeric',month:'short'})}`})}
     }else if(key===targetKey){
       const need=Math.max(0,d.balance-d.reserved);const topUp=Math.min(Math.max(0,available),need);
       if(topUp>0){d.reserved+=topUp;available-=topUp}
-      if(d.reserved+0.01>=d.balance){const pay=d.balance;d.balance=0;d.reserved=0;payments.push({name:d.name,amount:pay,kind:'whole',note:'target month • paid in full'})}
+      if(d.reserved+0.01>=d.balance){const pay=d.balance;d.balance=0;d.reserved=0;payments.push({name:d.name,amount:pay,kind:'whole',note:`FINAL DATE ${targetDate.toLocaleDateString('en-GB',{day:'numeric',month:'short'})} • paid in full`})}
       else{payments.push({name:d.name,amount:d.reserved,kind:'whole-due',note:`TARGET MONTH • short ${money(d.balance-d.reserved)}`})}
     }else{
       const need=Math.max(0,d.balance-d.reserved);const topUp=Math.min(Math.max(0,available),need);
@@ -102,6 +99,9 @@ function buildRoadmap(maxMonths=18){
       if(d.reserved+0.01>=d.balance){const pay=d.balance;d.balance=0;d.reserved=0;payments.push({name:d.name,amount:pay,kind:'whole',note:'overdue target • paid in full'})}
       else{payments.push({name:d.name,amount:d.reserved,kind:'whole-due',note:`OVERDUE • short ${money(d.balance-d.reserved)}`})}
     }
+  }
+  for(const g of goals.filter(x=>x.saved<x.amount).sort((a,b)=>goalRank(b.priority)-goalRank(a.priority)||new Date(a.deadline)-new Date(b.deadline))){
+   const deadline=new Date(g.deadline+'T12:00:00');const deadlineMonth=new Date(deadline.getFullYear(),deadline.getMonth(),1);const monthsLeft=Math.max(1,Math.round((deadlineMonth-date)/(30.44*86400000))+1);const need=g.amount-g.saved;const req=Math.min(need,need/monthsLeft,Math.max(0,available));if(req>0){g.saved+=req;available-=req;payments.push({name:g.name,amount:req,kind:'goal'})}
   }
   for(const d of debts.filter(x=>!x.fixed&&x.pieces!==false&&x.balance>0).sort((a,b)=>debtPriorityScore(b)-debtPriorityScore(a))){if(available<=0)break;const pay=Math.min(d.balance,+d.monthly||0,Math.max(+d.minimum||0,available*.45),available);if(pay>0){d.balance-=pay;available-=pay;payments.push({name:d.name,amount:pay,kind:'flex'})}}
   for(const d of debts.filter(x=>!x.fixed&&x.pieces===false&&x.balance>0&&!(x.targetDate||x.targetMonth)).sort((a,b)=>debtPriorityScore(b)-debtPriorityScore(a))){if(available>=d.balance){const pay=d.balance;d.balance=0;available-=pay;payments.push({name:d.name,amount:pay,kind:'whole',note:'paid in full'})}}
@@ -112,7 +112,7 @@ function buildRoadmap(maxMonths=18){
  return {rows,clearedMonth};
 }
 
-function renderRoadmap(){const r=buildRoadmap();const el=$('#roadmap');if(!r.rows.length||currentIncome()<=0){el.innerHTML='Add income and debts to build your timeline.';return}el.innerHTML=r.rows.map((m,i)=>`<div class="roadmap-month ${m.debtLeft<=0?'done':''}"><div class="roadmap-dot">${m.debtLeft<=0?'✓':i+1}</div><div class="roadmap-body"><div class="roadmap-top"><strong>${m.label}</strong><span>${m.debtLeft<=0?'Debt free':money(m.debtLeft)+' left'}</span></div><div class="roadmap-payments">${m.payments.length?m.payments.slice(0,5).map(p=>`<span>${p.kind==='whole'?'★':'•'} ${esc(p.name)} ${money(p.amount)}${p.note?` <em>${esc(p.note)}</em>`:''}</span>`).join(''):'<span>No planned payments</span>'}${m.free>0?`<span class="free-line">Safe/free after plan: ${money(m.free)}</span>`:''}</div></div></div>`).join('');
+function renderRoadmap(){const r=buildRoadmap();const el=$('#roadmap');if(!r.rows.length||currentIncome()<=0){el.innerHTML='Add income and debts to build your timeline.';return}el.innerHTML=r.rows.map((m,i)=>`<div class="roadmap-month ${m.debtLeft<=0?'done':''}"><div class="roadmap-dot">${m.debtLeft<=0?'✓':i+1}</div><div class="roadmap-body"><div class="roadmap-top"><strong>${m.label}</strong><span>${m.debtLeft<=0?'Debt free':money(m.debtLeft)+' left'}</span></div><div class="roadmap-payments">${m.payments.length?m.payments.map(p=>`<span>${p.kind==='whole'?'★':'•'} ${esc(p.name)} ${money(p.amount)}${p.note?` <em>${esc(p.note)}</em>`:''}</span>`).join(''):'<span>No planned payments</span>'}${m.free>0?`<span class="free-line">Safe/free after plan: ${money(m.free)}</span>`:''}</div></div></div>`).join('');
  if(r.clearedMonth){$('#freedomHeadline').textContent=`You could be debt-free by ${monthLabel(r.clearedMonth)} 🎉`;$('#freedomMessage').textContent='Keep following the plan and your future monthly income becomes yours again. Small disciplined months can lead to a much lighter life.';$('#freedomBadge').textContent='♥ FREEDOM AHEAD'}else{$('#freedomHeadline').textContent='Your debt-free journey is mapped month by month.';$('#freedomMessage').textContent='The roadmap protects essentials first, then fixed EMIs, urgent goals and the smartest flexible repayments.';$('#freedomBadge').textContent='♥ KEEP GOING'}
 }
 
