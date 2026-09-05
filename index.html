@@ -8,8 +8,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Fari Money Assistant</title>
   <link rel="manifest" href="manifest.json" />
-  <link rel="icon" href="favicon-v4.png?v=11" />
-  <link rel="apple-touch-icon" href="apple-touch-icon-v4.png?v=11" />
+  <link rel="icon" href="favicon-v4.png?v=13" />
+  <link rel="apple-touch-icon" href="apple-touch-icon-v4.png?v=13" />
   <script>
     (function(){
       var mobileUA=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
@@ -30,17 +30,13 @@
       };
     })();
   </script>
-  <link rel="stylesheet" href="style.css?v=11.0.0" />
+  <link rel="stylesheet" href="style.css?v=13.0.0" />
 
   <script>
-  // v12: clear stale GitHub Pages/PWA caches from older builds once.
+  // v13: never let an older PWA cache control the login page.
   (function(){
-    const k='fariMoneyCacheResetV12';
-    if(!localStorage.getItem(k)){
-      localStorage.setItem(k,'1');
-      if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.unregister()))).catch(()=>{});}
-      if('caches' in window){caches.keys().then(keys=>Promise.all(keys.map(key=>caches.delete(key)))).catch(()=>{});}
-    }
+    if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.unregister()))).catch(()=>{});}
+    if('caches' in window){caches.keys().then(keys=>Promise.all(keys.map(key=>caches.delete(key)))).catch(()=>{});}
   })();
   </script>
 </head>
@@ -239,7 +235,6 @@
     <button data-view="settings">⚙️ Settings & Backup</button>
   </div>
   <div class="toast" id="toast"></div>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js?v=12.0.0"></script>
+    <script src="app.js?v=13.0.0"></script>
 </body>
 </html>

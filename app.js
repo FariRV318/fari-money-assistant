@@ -182,7 +182,7 @@ function initSupabase(){
   // v12: use the exact official supabase-js pattern already proven in the user's
   // Trading Dashboard. Keep a small REST fallback only if the CDN cannot load.
   try{
-    if(window.supabase && typeof window.supabase.createClient==='function'){
+    if(false && window.supabase && typeof window.supabase.createClient==='function'){
       sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{
         auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false},
         global:{fetch:fetch.bind(globalThis)}
@@ -193,7 +193,7 @@ function initSupabase(){
   }catch(err){console.warn('Supabase SDK init failed:',err)}
 
   // REST fallback for rare CDN failures.
-  const SESSION_KEY='fariMoneySupabaseSession_v12';
+  const SESSION_KEY='fariMoneySupabaseSession_v13';
   const listeners=[];
   const readSession=()=>{try{return JSON.parse(localStorage.getItem(SESSION_KEY)||'null')}catch{return null}};
   const writeSession=(session)=>{if(session)localStorage.setItem(SESSION_KEY,JSON.stringify(session));else localStorage.removeItem(SESSION_KEY)};
@@ -293,7 +293,19 @@ async function cloudLoad(){if(!sb)return;const {data:{user}}=await sb.auth.getUs
 $('#loginForm').onsubmit=async e=>{e.preventDefault();if(!sb){toast('Cloud connection is unavailable. Please refresh and try again.');return}const email=$('#loginEmail').value.trim(),password=$('#loginPassword').value;const {error}=await sb.auth.signInWithPassword({email,password});if(error){alert(error.message);return}state.account.email=email;localStorage.setItem(KEY,JSON.stringify(state));renderAccount();toast('Logged in ♥');cloudLoad().catch(()=>{})};
 $('#signupForm').onsubmit=async e=>{e.preventDefault();if(!sb){toast('Cloud connection is unavailable. Please refresh and try again.');return}const name=$('#signupName').value.trim()||'Fari',email=$('#signupEmail').value.trim(),password=$('#signupPassword').value;const {error}=await sb.auth.signUp({email,password,options:{data:{name}}});if(error){alert(error.message);return}state.account.name=name;state.account.email=email;localStorage.setItem(KEY,JSON.stringify(state));renderAccount();toast('Account created — check your email if confirmation is enabled')};
 
-$('#txnDate').value=new Date().toISOString().slice(0,10);$('#goalDeadline').value=new Date(Date.now()+30*86400000).toISOString().slice(0,10);$('#todayText').textContent=new Date().toLocaleDateString('en-AE',{weekday:'long',day:'numeric',month:'long',year:'numeric'});initSupabase();renderAll();if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js?v=12.0.0').then(r=>r.update()).catch(()=>{});
+$('#txnDate').value=new Date().toISOString().slice(0,10);$('#goalDeadline').value=new Date(Date.now()+30*86400000).toISOString().slice(0,10);$('#todayText').textContent=new Date().toLocaleDateString('en-AE',{weekday:'long',day:'numeric',month:'long',year:'numeric'});initSupabase();renderAll();
+
+
+async function authHealthCheck(){
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),8000);
+  try{
+    const r=await fetch(`${SUPABASE_URL}/auth/v1/settings`,{headers:{apikey:SUPABASE_PUBLISHABLE_KEY},signal:controller.signal,cache:'no-store'});
+    return r.ok ? {ok:true} : {ok:false,message:`Supabase connection returned ${r.status}.`};
+  }catch(err){
+    return {ok:false,message:err?.name==='AbortError'?'Supabase connection timed out.':'Could not reach Supabase: '+(err?.message||'network error')};
+  }finally{clearTimeout(timer)}
+}
 
 // Premium entry/login experience
 (function initEntryGate(){
@@ -310,18 +322,34 @@ $('#txnDate').value=new Date().toISOString().slice(0,10);$('#goalDeadline').valu
     e.preventDefault();
     const status=document.getElementById('gateLoginStatus'),btn=document.getElementById('gateLoginSubmit');
     const email=document.getElementById('gateLoginEmail').value.trim(),password=document.getElementById('gateLoginPassword').value;
-    if(!email||!password){if(status)status.textContent='Please enter your email and password.';return}
-    if(!sb){if(status)status.textContent='Connection setup failed. Refresh the page and try again.';return}
-    if(status){status.className='auth-status working';status.textContent='Signing you in…'};if(btn){btn.disabled=true;btn.textContent='Signing in…'}
+    if(!email||!password){if(status){status.className='auth-status error';status.textContent='Please enter your email and password.'}return}
+    if(status){status.className='auth-status working';status.textContent='Checking secure connection…'};
+    if(btn){btn.disabled=true;btn.textContent='Please wait…'}
     try{
-      const {data,error}=await withTimeout(sb.auth.signInWithPassword({email,password}),18000);
-      if(error){if(status){status.className='auth-status error';status.textContent=error.message};return}
+      const health=await authHealthCheck();
+      if(!health.ok) throw new Error(health.message);
+      if(status) status.textContent='Signing you in…';
+      const controller=new AbortController();
+      const timer=setTimeout(()=>controller.abort(),12000);
+      let res;
+      try{
+        res=await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`,{
+          method:'POST',
+          headers:{apikey:SUPABASE_PUBLISHABLE_KEY,'Content-Type':'application/json','Accept':'application/json'},
+          body:JSON.stringify({email,password}),signal:controller.signal,cache:'no-store'
+        });
+      }finally{clearTimeout(timer)}
+      let body={};try{body=await res.json()}catch{}
+      if(!res.ok) throw new Error(body?.msg||body?.error_description||body?.message||body?.error||`Login failed (${res.status})`);
+      if(!body?.access_token) throw new Error('Supabase signed in but did not return a session. Please try again.');
+      localStorage.setItem('fariMoneySupabaseSession_v13',JSON.stringify(body));
       state.account.email=email;localStorage.setItem(KEY,JSON.stringify(state));
       sessionStorage.setItem('fariMoneyEntered','1');gate.classList.add('hidden');renderAccount();renderAll();toast('Welcome back ♥');
-      // Cloud data loading happens after entry so a slow table request can never block login.
       cloudLoad().catch(err=>console.warn('Cloud load:',err));
-    }catch(err){if(status){status.className='auth-status error';status.textContent=err?.message||'Login failed. Please try again.'}}
-    finally{
+    }catch(err){
+      const msg=err?.name==='AbortError'?'Supabase did not respond within 12 seconds. Please check your internet connection and try again.':(err?.message||'Login failed. Please try again.');
+      if(status){status.className='auth-status error';status.textContent=msg}
+    }finally{
       if(btn){btn.disabled=false;btn.textContent='Login'}
       const offline=document.getElementById('gateOfflineAfterError');
       if(offline && status?.classList.contains('error')) offline.style.display='block';
@@ -334,20 +362,20 @@ $('#txnDate').value=new Date().toISOString().slice(0,10);$('#goalDeadline').valu
   });
   createPanel?.addEventListener('submit',async e=>{
     e.preventDefault();
-    if(!sb){toast('Supabase is not connected yet. Continue as Guest, then open Account & Login to add your Supabase details.');return}
     const name=document.getElementById('gateSignupName').value.trim(),email=document.getElementById('gateSignupEmail').value.trim(),password=document.getElementById('gateSignupPassword').value;
-    const {data,error}=await sb.auth.signUp({email,password,options:{data:{name}}});
-    if(error){alert(error.message);return}
-    state.account.name=name||'Fari';state.account.email=email;localStorage.setItem(KEY,JSON.stringify(state));
-    if(data?.session){await cloudSave();sessionStorage.setItem('fariMoneyEntered','1');gate.classList.add('hidden');renderAccount();toast('Account created — cloud sync active ♥');}
-    else{toast('Account created. Confirm your email, then log in ♥');show(loginPanel);document.getElementById('gateLoginEmail').value=email;}
+    try{
+      const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),12000);
+      let res;try{
+        res=await fetch(`${SUPABASE_URL}/auth/v1/signup`,{method:'POST',headers:{apikey:SUPABASE_PUBLISHABLE_KEY,'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({email,password,data:{name}}),signal:controller.signal,cache:'no-store'});
+      }finally{clearTimeout(timer)}
+      let body={};try{body=await res.json()}catch{}
+      if(!res.ok)throw new Error(body?.msg||body?.error_description||body?.message||body?.error||`Signup failed (${res.status})`);
+      if(body?.access_token)localStorage.setItem('fariMoneySupabaseSession_v13',JSON.stringify(body));
+      state.account.name=name||'Fari';state.account.email=email;localStorage.setItem(KEY,JSON.stringify(state));renderAccount();
+      if(body?.access_token){sessionStorage.setItem('fariMoneyEntered','1');gate.classList.add('hidden');renderAll();toast('Account created ♥');cloudSave().catch(()=>{});}
+      else alert('Account created. Please confirm your email, then return here and log in.');
+    }catch(err){alert(err?.name==='AbortError'?'Supabase did not respond within 12 seconds.':(err?.message||'Could not create account.'))}
   });
-  (async()=>{
-    if(!sb)return;
-    const {data:{session}}=await sb.auth.getSession();
-    if(session?.user){state.account.email=session.user.email||state.account.email;state.account.name=session.user.user_metadata?.name||state.account.name;localStorage.setItem(KEY,JSON.stringify(state));sessionStorage.setItem('fariMoneyEntered','1');gate.classList.add('hidden');renderAccount();renderAll();cloudLoad().catch(err=>console.warn('Cloud load:',err));}
-    sb.auth.onAuthStateChange(async(event,session)=>{if(event==='SIGNED_OUT'){state.account.email='';localStorage.setItem(KEY,JSON.stringify(state));sessionStorage.removeItem('fariMoneyEntered');gate.classList.remove('hidden');actions.style.display='grid';loginPanel.classList.remove('open');createPanel.classList.remove('open');renderAccount();}else if(session?.user){state.account.email=session.user.email||state.account.email;localStorage.setItem(KEY,JSON.stringify(state));renderAccount();}});
-  })();
 })();
 
 const logoutBtn=document.getElementById('logoutBtn');if(logoutBtn)logoutBtn.onclick=async()=>{if(sb)await sb.auth.signOut();else{sessionStorage.removeItem('fariMoneyEntered');document.getElementById('authGate')?.classList.remove('hidden')}};
