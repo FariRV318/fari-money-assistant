@@ -1,22 +1,24 @@
-# Fari Money Assistant
+# Fari Money Assistant v2.1
 
-A mobile-first AED personal finance assistant that runs entirely in the browser and works on GitHub Pages.
+Premium mobile-first AED money management assistant created by Fari-RV ♥
 
-## Features
-- Monthly income + expense planning
-- Fixed EMI and flexible debt management
-- Interest-aware debt priority
-- Urgent goal/deadline planning
-- "Can I Afford This?" full-payment and installment checks
-- Tabby/Tamara 4-payment simulation
-- Revolving credit / Tabby Card cycle planner
-- Safe-to-spend calculation
-- Local automatic saving
-- JSON backup + restore
-- PWA install support
+## Included
+- Smart monthly money planning
+- Multi-month Debt Freedom Roadmap
+- Fixed EMI vs flexible debt prioritization
+- Pay-together friend/family debt scheduling
+- Editable debt and revolving-credit entries
+- Urgent goal/deadline planner
+- Can I Afford This? (full payment / Tabby / Tamara / custom installments)
+- Revolving credit / Tabby Card cycle planning
+- Attractive entry login / create-account / guest screen
+- Supabase-ready account and sync configuration
+- Local auto-save, backup and restore
+- Professional PWA icons for phone, tablet and desktop
+- Consistent teal, blush-pink and gold premium theme on every page
 
 ## GitHub Pages
-Upload all files to a repository. In GitHub: Settings → Pages → Deploy from a branch → main / root.
+Upload all files to the repository root, then enable GitHub Pages from the main branch/root folder.
 
-## Important
-This app provides budgeting guidance, not financial advice. The first version stores data in browser localStorage. Export backups regularly. Cloud account sync can be added in a later version.
+## Supabase
+Continue as Guest first, open Account & Login, then add your Supabase Project URL and publishable/anon key. Real cloud tables/RLS setup can be connected in the next implementation step.

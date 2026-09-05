@@ -3,18 +3,51 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#111827" />
+  <meta name="theme-color" content="#07665f" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Fari Money Assistant</title>
   <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="favicon.png" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <div class="auth-gate" id="authGate">
+    <div class="auth-card">
+      <img class="auth-logo" src="icon-512.png" alt="Fari Money Assistant">
+      <h1 class="auth-title">Fari Money Assistant</h1>
+      <p class="auth-tagline">Plan Today ♥ A Brighter Tomorrow</p>
+      <p class="auth-welcome">Your personal money guide for smarter spending, debt freedom, urgent goals and better financial decisions.</p>
+      <div class="auth-actions" id="authActions">
+        <button class="auth-login-btn" id="gateLoginBtn">👤 Login</button>
+        <button class="auth-create-btn" id="gateCreateBtn">Create Account</button>
+        <button class="auth-guest-btn" id="gateGuestBtn">Continue as Guest ›</button>
+      </div>
+      <form class="auth-panel" id="gateLoginPanel">
+        <h3>Welcome Back ♥</h3>
+        <label>Email<input id="gateLoginEmail" type="email" required placeholder="you@example.com"></label>
+        <label>Password<input id="gateLoginPassword" type="password" required minlength="6" placeholder="••••••••"></label>
+        <button class="primary" type="submit">Login</button>
+        <button class="auth-back" type="button" data-auth-back>← Back</button>
+      </form>
+      <form class="auth-panel" id="gateCreatePanel">
+        <h3>Create Your Account ♥</h3>
+        <label>Name<input id="gateSignupName" placeholder="Fari"></label>
+        <label>Email<input id="gateSignupEmail" type="email" required></label>
+        <label>Password<input id="gateSignupPassword" type="password" required minlength="6"></label>
+        <button class="primary" type="submit">Create Account</button>
+        <button class="auth-back" type="button" data-auth-back>← Back</button>
+      </form>
+      <p class="auth-quote">“Dreams don’t work unless you plan.”</p>
+      <p class="auth-credit">Created by <strong>Fari-RV ♥</strong></p>
+    </div>
+  </div>
+
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
       <div class="brand">
-        <div class="brand-mark">F</div>
+        <img class="brand-logo" src="icon-192.png" alt="Fari Money Assistant">
         <div><strong>Fari Money</strong><span>Assistant</span></div>
       </div>
       <nav id="nav">
@@ -25,9 +58,10 @@
         <button class="nav-btn" data-view="goals">🎯 <span>Urgent Goals</span></button>
         <button class="nav-btn" data-view="afford">🛍️ <span>Can I Afford This?</span></button>
         <button class="nav-btn" data-view="credit">🔁 <span>Revolving Credit</span></button>
+        <button class="nav-btn" data-view="account">👤 <span>Account & Login</span></button>
         <button class="nav-btn" data-view="settings">⚙️ <span>Settings & Backup</span></button>
       </nav>
-      <div class="sidebar-foot">AED-based • Auto-saved locally</div>
+      <div class="sidebar-foot"><strong>Created by Fari-RV ♥</strong><br>Plan today. Breathe easier tomorrow.</div>
     </aside>
 
     <main>
@@ -49,6 +83,16 @@
           </div>
           <div class="health" id="healthBadge">SETUP</div>
         </div>
+
+        <article class="journey-banner">
+          <div><span class="eyebrow">Your debt-free journey</span><h3 id="freedomHeadline">Your future plan will appear here.</h3><p id="freedomMessage">Add your income and debts and I’ll map the road ahead month by month.</p></div>
+          <div class="freedom-badge" id="freedomBadge">♥ FUTURE YOU</div>
+        </article>
+
+        <article class="card roadmap-card">
+          <div class="card-head"><div><span class="eyebrow">Beyond this month</span><h3>Debt Freedom Roadmap</h3><p class="subtle">See what September, October, November and the months ahead could look like.</p></div><button class="text-btn" data-jump="plan">View full plan</button></div>
+          <div id="roadmap" class="roadmap empty-state">Add income and debts to build your timeline.</div>
+        </article>
 
         <div class="stats-grid">
           <article class="stat"><span>Total income</span><strong id="statIncome">AED 0</strong><small>This month</small></article>
@@ -113,25 +157,40 @@
         <div id="creditCards" class="cards-grid"></div>
       </section>
 
+      <section class="view" id="account-view">
+        <div class="section-intro"><div><span class="eyebrow">Your secure money space</span><h2>Account & Login</h2><p>Use the app locally now. Supabase login and cloud sync are built into the interface and activate once your project URL and publishable key are added.</p></div></div>
+        <div class="account-hero">
+          <img src="icon-192.png" alt="App icon">
+          <div><h3>Fari Money Assistant</h3><p>One plan, every device. Your login can later keep the same debts, goals and monthly roadmap synced on phone, tablet and desktop.</p><span class="sync-pill" id="syncStatus">LOCAL MODE</span></div>
+        </div>
+        <div class="grid-2">
+          <article class="card"><h3>Sign in</h3><form id="loginForm" class="form-grid"><label class="span-2">Email<input id="loginEmail" type="email" required placeholder="you@example.com"></label><label class="span-2">Password<input id="loginPassword" type="password" required minlength="6" placeholder="••••••••"></label><button class="primary span-2">Login</button></form><p class="small-note">If Supabase is not configured yet, this page stays safely in local mode.</p></article>
+          <article class="card"><h3>Create account</h3><form id="signupForm" class="form-grid"><label class="span-2">Name<input id="signupName" placeholder="Fari"></label><label class="span-2">Email<input id="signupEmail" type="email" required></label><label class="span-2">Password<input id="signupPassword" type="password" required minlength="6"></label><button class="secondary span-2">Create Account</button></form></article>
+        </div>
+        <article class="card"><h3>Supabase connection</h3><p class="small-note">Paste these later from Supabase → Project Settings → API. Your publishable/anon key is designed for client apps when Row Level Security is configured correctly.</p><form id="supabaseConfigForm" class="form-grid"><label class="span-2">Project URL<input id="supabaseUrl" placeholder="https://xxxx.supabase.co"></label><label class="span-2">Publishable / anon key<input id="supabaseKey" type="password" placeholder="sb_publishable_..."></label><button class="primary span-2">Save Supabase Connection</button></form></article>
+      </section>
+
       <section class="view" id="settings-view">
-        <div class="section-intro"><div><span class="eyebrow">Your data</span><h2>Settings & Backup</h2><p>Your data stays on this device unless you export it. Cloud sync can be added later.</p></div></div>
+        <div class="section-intro"><div><span class="eyebrow">Your data</span><h2>Settings & Backup</h2><p>Local backup remains available. When Supabase is configured and you are logged in, the app can also save and load your financial data from the cloud.</p></div></div>
         <div class="grid-2">
           <article class="card"><h3>Backup</h3><p>Download a JSON backup and restore it on another device/browser.</p><div class="button-stack"><button class="primary" id="exportBtn">Download Backup</button><label class="secondary file-label">Restore Backup<input type="file" id="importFile" accept="application/json"></label></div></article>
           <article class="card"><h3>Reset</h3><p>Erase all locally stored financial data from this browser.</p><button class="danger" id="resetBtn">Reset All Data</button></article>
         </div>
       </section>
+      <footer class="creator-footer"><strong>Created by Fari-RV ♥</strong><span>“A well-managed today creates a freer tomorrow.”</span></footer>
     </main>
   </div>
 
   <div class="modal" id="transactionModal"><div class="modal-card"><div class="modal-head"><h3>Add Transaction</h3><button class="close">×</button></div><form id="transactionForm" class="form-grid"><label>Type<select id="txnType"><option>Expense</option><option>Income</option><option>Debt Payment</option><option>Debt Received</option></select></label><label>Amount<input id="txnAmount" type="number" min="0.01" step="0.01" required></label><label>Category<input id="txnCategory" placeholder="Food, Rent, Trading..."></label><label>Date<input id="txnDate" type="date" required></label><label class="span-2">Note<input id="txnNote" placeholder="Optional note"></label><button class="primary span-2">Save Transaction</button></form></div></div>
 
-  <div class="modal" id="debtModal"><div class="modal-card"><div class="modal-head"><h3>Add Debt</h3><button class="close">×</button></div><form id="debtForm" class="form-grid"><label>Debt name<input id="debtName" required placeholder="CashNow / Friend name"></label><label>Type<select id="debtType"><option>Loan</option><option>BNPL</option><option>Credit Card</option><option>Friend</option><option>Family</option><option>Other</option></select></label><label>Outstanding balance<input id="debtBalance" type="number" min="0.01" step="0.01" required></label><label>Fixed monthly installment?<select id="debtFixed"><option value="yes">Yes</option><option value="no">No - flexible</option></select></label><label>Monthly installment / preferred payment<input id="debtMonthly" type="number" min="0" step="0.01" required></label><label>Due day (1-31)<input id="debtDueDay" type="number" min="1" max="31" value="1"></label><label>Interest?<select id="debtInterest"><option value="no">No</option><option value="yes">Yes</option></select></label><label>Annual interest %<input id="debtRate" type="number" min="0" step="0.01" value="0"></label><label>Priority<select id="debtPriority"><option value="critical">Critical</option><option value="high">High</option><option value="normal" selected>Normal</option><option value="low">Low</option></select></label><label>Minimum flexible payment<input id="debtMinimum" type="number" min="0" step="0.01" value="0"></label><button class="primary span-2">Save Debt</button></form></div></div>
+  <div class="modal" id="debtModal"><div class="modal-card"><div class="modal-head"><h3>Add Debt</h3><button class="close">×</button></div><form id="debtForm" class="form-grid"><label>Debt name<input id="debtName" required placeholder="CashNow / Friend name"></label><label>Type<select id="debtType"><option>Loan</option><option>BNPL</option><option>Credit Card</option><option>Friend</option><option>Family</option><option>Other</option></select></label><label>Outstanding balance<input id="debtBalance" type="number" min="0.01" step="0.01" required></label><label>Fixed monthly installment?<select id="debtFixed"><option value="yes">Yes</option><option value="no">No - flexible</option></select></label><label>Monthly installment / preferred payment<input id="debtMonthly" type="number" min="0" step="0.01" required></label><label>Due day (1-31)<input id="debtDueDay" type="number" min="1" max="31" value="1"></label><label>Interest?<select id="debtInterest"><option value="no">No</option><option value="yes">Yes</option></select></label><label>Annual interest %<input id="debtRate" type="number" min="0" step="0.01" value="0"></label><label>Priority<select id="debtPriority"><option value="critical">Critical</option><option value="high">High</option><option value="normal" selected>Normal</option><option value="low">Low</option></select></label><label>Minimum flexible payment<input id="debtMinimum" type="number" min="0" step="0.01" value="0"></label><label>Can this debt be paid in pieces?<select id="debtPieces"><option value="yes">Yes - partial payments are okay</option><option value="no">No - pay full amount together</option></select></label><label>Preferred full-payment month<input id="debtTargetMonth" type="month"></label><button class="primary span-2" id="debtSubmitBtn">Save Debt</button></form></div></div>
 
   <div class="modal" id="goalModal"><div class="modal-card"><div class="modal-head"><h3>Add Urgent Goal</h3><button class="close">×</button></div><form id="goalForm" class="form-grid"><label>Goal / requirement<input id="goalName" required placeholder="French course"></label><label>Amount needed<input id="goalAmount" type="number" min="1" step="0.01" required placeholder="2000"></label><label>Last date<input id="goalDeadline" type="date" required></label><label>Priority<select id="goalPriority"><option value="critical">Critical / cannot miss</option><option value="high">Very important</option><option value="normal">Important</option></select></label><label>Already saved<input id="goalSaved" type="number" min="0" step="0.01" value="0"></label><label>Must pay in full?<select id="goalFull"><option value="yes">Yes</option><option value="no">No / partial allowed</option></select></label><button class="primary span-2">Save Goal</button></form></div></div>
 
-  <div class="modal" id="creditModal"><div class="modal-card"><div class="modal-head"><h3>Add Revolving Credit</h3><button class="close">×</button></div><form id="creditForm" class="form-grid"><label>Account name<input id="creditName" required placeholder="Tabby Card"></label><label>Outstanding balance<input id="creditBalance" type="number" min="1" step="0.01" required placeholder="5000"></label><label>Typical monthly payment<input id="creditPayment" type="number" min="0" step="0.01" required placeholder="1200"></label><label>Monthly fee / cost<input id="creditFee" type="number" min="0" step="0.01" value="60"></label><label>Typical amount reused<input id="creditReuse" type="number" min="0" step="0.01" value="1200"></label><label>Desired payoff month<input id="creditTarget" type="month"></label><button class="primary span-2">Save Revolving Account</button></form></div></div>
+  <div class="modal" id="creditModal"><div class="modal-card"><div class="modal-head"><h3>Add Revolving Credit</h3><button class="close">×</button></div><form id="creditForm" class="form-grid"><label>Account name<input id="creditName" required placeholder="Tabby Card"></label><label>Outstanding balance<input id="creditBalance" type="number" min="1" step="0.01" required placeholder="5000"></label><label>Typical monthly payment<input id="creditPayment" type="number" min="0" step="0.01" required placeholder="1200"></label><label>Monthly fee / cost<input id="creditFee" type="number" min="0" step="0.01" value="60"></label><label>Typical amount reused<input id="creditReuse" type="number" min="0" step="0.01" value="1200"></label><label>Desired payoff month<input id="creditTarget" type="month"></label><button class="primary span-2" id="creditSubmitBtn">Save Revolving Account</button></form></div></div>
 
   <div class="toast" id="toast"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="app.js"></script>
 </body>
 </html>
