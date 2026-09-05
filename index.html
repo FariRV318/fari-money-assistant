@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#111827" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Fari Money Assistant</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark">F</div>
+        <div><strong>Fari Money</strong><span>Assistant</span></div>
+      </div>
+      <nav id="nav">
+        <button class="nav-btn active" data-view="dashboard">🏠 <span>Dashboard</span></button>
+        <button class="nav-btn" data-view="plan">🤖 <span>My Money Plan</span></button>
+        <button class="nav-btn" data-view="transactions">💳 <span>Transactions</span></button>
+        <button class="nav-btn" data-view="debts">🧾 <span>Debt Manager</span></button>
+        <button class="nav-btn" data-view="goals">🎯 <span>Urgent Goals</span></button>
+        <button class="nav-btn" data-view="afford">🛍️ <span>Can I Afford This?</span></button>
+        <button class="nav-btn" data-view="credit">🔁 <span>Revolving Credit</span></button>
+        <button class="nav-btn" data-view="settings">⚙️ <span>Settings & Backup</span></button>
+      </nav>
+      <div class="sidebar-foot">AED-based • Auto-saved locally</div>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <button class="icon-btn" id="menuBtn" aria-label="Menu">☰</button>
+        <div>
+          <h1 id="pageTitle">Dashboard</h1>
+          <p id="todayText"></p>
+        </div>
+        <button class="avatar" id="quickAdd">＋</button>
+      </header>
+
+      <section class="view active" id="dashboard-view">
+        <div class="hero">
+          <div>
+            <span class="eyebrow">Safe to spend today</span>
+            <h2 id="safeToSpend">AED 0</h2>
+            <p id="heroMessage">Add your income and commitments to generate your plan.</p>
+          </div>
+          <div class="health" id="healthBadge">SETUP</div>
+        </div>
+
+        <div class="stats-grid">
+          <article class="stat"><span>Total income</span><strong id="statIncome">AED 0</strong><small>This month</small></article>
+          <article class="stat"><span>Mandatory reserved</span><strong id="statMandatory">AED 0</strong><small>Fixed commitments</small></article>
+          <article class="stat"><span>Total debt</span><strong id="statDebt">AED 0</strong><small>Outstanding</small></article>
+          <article class="stat"><span>Goal funding needed</span><strong id="statGoals">AED 0</strong><small>Before deadlines</small></article>
+        </div>
+
+        <div class="grid-2">
+          <article class="card">
+            <div class="card-head"><div><span class="eyebrow">Assistant recommendation</span><h3>This month’s priorities</h3></div><button class="text-btn" data-jump="plan">Open plan</button></div>
+            <div id="priorityList" class="priority-list empty-state">No plan yet.</div>
+          </article>
+          <article class="card">
+            <div class="card-head"><div><span class="eyebrow">Upcoming</span><h3>Next important payments</h3></div></div>
+            <div id="upcomingList" class="timeline empty-state">Nothing due yet.</div>
+          </article>
+        </div>
+
+        <article class="card">
+          <div class="card-head"><div><span class="eyebrow">Cash-flow map</span><h3>Where your monthly income goes</h3></div></div>
+          <div class="flow-bar" id="flowBar"></div>
+          <div class="flow-legend" id="flowLegend"></div>
+        </article>
+      </section>
+
+      <section class="view" id="plan-view">
+        <div class="section-intro"><div><span class="eyebrow">Your financial brain</span><h2>My Money Plan</h2><p>Creates a priority-based plan using your income, fixed commitments, debts, goals and monthly buffer.</p></div><button class="primary" id="generatePlanBtn">Generate / Refresh Plan</button></div>
+        <div class="grid-2">
+          <article class="card"><h3>Income setup</h3><form id="incomeForm" class="form-grid"><label>Fixed salary<input type="number" min="0" step="0.01" id="fixedIncome" placeholder="5000"></label><label>Side / online income<input type="number" min="0" step="0.01" id="sideIncome" placeholder="2500"></label><label>Trading income<input type="number" step="0.01" id="tradingIncome" placeholder="0"></label><label>Other income<input type="number" step="0.01" id="otherIncome" placeholder="0"></label><label>Essential living budget<input type="number" min="0" step="0.01" id="essentialBudget" placeholder="1200"></label><label>Emergency buffer target<input type="number" min="0" step="0.01" id="bufferTarget" placeholder="500"></label><button class="primary span-2" type="submit">Save Income & Budget</button></form></article>
+          <article class="card"><h3>Assistant summary</h3><div id="planSummary" class="assistant-box">Enter your monthly income, then add debts and goals. I’ll calculate what is non-negotiable and how to use the rest.</div></article>
+        </div>
+        <article class="card"><h3>Recommended allocation</h3><div id="allocationTable" class="table-wrap empty-state">No plan generated yet.</div></article>
+      </section>
+
+      <section class="view" id="transactions-view">
+        <div class="section-intro"><div><span class="eyebrow">Daily money</span><h2>Transactions</h2><p>Track income and spending. Your plan updates automatically.</p></div><button class="primary" data-modal="transaction">+ Add transaction</button></div>
+        <div class="filter-row"><input id="txnSearch" placeholder="Search transactions"><select id="txnTypeFilter"><option value="all">All types</option><option>Expense</option><option>Income</option><option>Debt Payment</option><option>Debt Received</option></select></div>
+        <article class="card"><div id="transactionList" class="list"></div></article>
+      </section>
+
+      <section class="view" id="debts-view">
+        <div class="section-intro"><div><span class="eyebrow">Priority-aware repayment</span><h2>Debt Manager</h2><p>Fixed EMIs are protected. Flexible debts are adjusted when your budget is tight.</p></div><button class="primary" data-modal="debt">+ Add debt</button></div>
+        <div id="debtCards" class="cards-grid"></div>
+      </section>
+
+      <section class="view" id="goals-view">
+        <div class="section-intro"><div><span class="eyebrow">Deadlines that matter</span><h2>Urgent Goals</h2><p>Tell the app what you must buy or pay for and by when. It works backward to create a funding path.</p></div><button class="primary" data-modal="goal">+ Add urgent goal</button></div>
+        <div id="goalCards" class="cards-grid"></div>
+      </section>
+
+      <section class="view" id="afford-view">
+        <div class="section-intro"><div><span class="eyebrow">Decision assistant</span><h2>Can I Afford This?</h2><p>Check full payment, Tabby/Tamara-style 4-pay, or custom installments against your real plan.</p></div></div>
+        <div class="grid-2">
+          <article class="card"><form id="affordForm" class="form-grid"><label class="span-2">What do you want to buy?<input id="affordName" required placeholder="Laptop"></label><label>Total cost<input id="affordCost" type="number" min="1" step="0.01" required placeholder="1600"></label><label>Payment method<select id="affordMethod"><option value="full">Pay in full</option><option value="pay4">Tabby / Tamara - 4 interest-free payments</option><option value="custom">Custom installments</option></select></label><label id="customMonthsWrap" class="hidden">Number of installments<input id="affordMonths" type="number" min="2" max="36" value="4"></label><label id="customInterestWrap" class="hidden">Total fee / interest<input id="affordFee" type="number" min="0" step="0.01" value="0"></label><button class="primary span-2" type="submit">Check Affordability</button></form></article>
+          <article class="card"><h3>Decision</h3><div id="affordResult" class="assistant-box">Enter a purchase to see whether it is safe, tight, or better postponed.</div></article>
+        </div>
+      </section>
+
+      <section class="view" id="credit-view">
+        <div class="section-intro"><div><span class="eyebrow">Break the cycle</span><h2>Revolving Credit Planner</h2><p>For credit cards or Tabby Card balances where you repay and reuse available credit.</p></div><button class="primary" data-modal="credit">+ Add revolving account</button></div>
+        <div id="creditCards" class="cards-grid"></div>
+      </section>
+
+      <section class="view" id="settings-view">
+        <div class="section-intro"><div><span class="eyebrow">Your data</span><h2>Settings & Backup</h2><p>Your data stays on this device unless you export it. Cloud sync can be added later.</p></div></div>
+        <div class="grid-2">
+          <article class="card"><h3>Backup</h3><p>Download a JSON backup and restore it on another device/browser.</p><div class="button-stack"><button class="primary" id="exportBtn">Download Backup</button><label class="secondary file-label">Restore Backup<input type="file" id="importFile" accept="application/json"></label></div></article>
+          <article class="card"><h3>Reset</h3><p>Erase all locally stored financial data from this browser.</p><button class="danger" id="resetBtn">Reset All Data</button></article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal" id="transactionModal"><div class="modal-card"><div class="modal-head"><h3>Add Transaction</h3><button class="close">×</button></div><form id="transactionForm" class="form-grid"><label>Type<select id="txnType"><option>Expense</option><option>Income</option><option>Debt Payment</option><option>Debt Received</option></select></label><label>Amount<input id="txnAmount" type="number" min="0.01" step="0.01" required></label><label>Category<input id="txnCategory" placeholder="Food, Rent, Trading..."></label><label>Date<input id="txnDate" type="date" required></label><label class="span-2">Note<input id="txnNote" placeholder="Optional note"></label><button class="primary span-2">Save Transaction</button></form></div></div>
+
+  <div class="modal" id="debtModal"><div class="modal-card"><div class="modal-head"><h3>Add Debt</h3><button class="close">×</button></div><form id="debtForm" class="form-grid"><label>Debt name<input id="debtName" required placeholder="CashNow / Friend name"></label><label>Type<select id="debtType"><option>Loan</option><option>BNPL</option><option>Credit Card</option><option>Friend</option><option>Family</option><option>Other</option></select></label><label>Outstanding balance<input id="debtBalance" type="number" min="0.01" step="0.01" required></label><label>Fixed monthly installment?<select id="debtFixed"><option value="yes">Yes</option><option value="no">No - flexible</option></select></label><label>Monthly installment / preferred payment<input id="debtMonthly" type="number" min="0" step="0.01" required></label><label>Due day (1-31)<input id="debtDueDay" type="number" min="1" max="31" value="1"></label><label>Interest?<select id="debtInterest"><option value="no">No</option><option value="yes">Yes</option></select></label><label>Annual interest %<input id="debtRate" type="number" min="0" step="0.01" value="0"></label><label>Priority<select id="debtPriority"><option value="critical">Critical</option><option value="high">High</option><option value="normal" selected>Normal</option><option value="low">Low</option></select></label><label>Minimum flexible payment<input id="debtMinimum" type="number" min="0" step="0.01" value="0"></label><button class="primary span-2">Save Debt</button></form></div></div>
+
+  <div class="modal" id="goalModal"><div class="modal-card"><div class="modal-head"><h3>Add Urgent Goal</h3><button class="close">×</button></div><form id="goalForm" class="form-grid"><label>Goal / requirement<input id="goalName" required placeholder="French course"></label><label>Amount needed<input id="goalAmount" type="number" min="1" step="0.01" required placeholder="2000"></label><label>Last date<input id="goalDeadline" type="date" required></label><label>Priority<select id="goalPriority"><option value="critical">Critical / cannot miss</option><option value="high">Very important</option><option value="normal">Important</option></select></label><label>Already saved<input id="goalSaved" type="number" min="0" step="0.01" value="0"></label><label>Must pay in full?<select id="goalFull"><option value="yes">Yes</option><option value="no">No / partial allowed</option></select></label><button class="primary span-2">Save Goal</button></form></div></div>
+
+  <div class="modal" id="creditModal"><div class="modal-card"><div class="modal-head"><h3>Add Revolving Credit</h3><button class="close">×</button></div><form id="creditForm" class="form-grid"><label>Account name<input id="creditName" required placeholder="Tabby Card"></label><label>Outstanding balance<input id="creditBalance" type="number" min="1" step="0.01" required placeholder="5000"></label><label>Typical monthly payment<input id="creditPayment" type="number" min="0" step="0.01" required placeholder="1200"></label><label>Monthly fee / cost<input id="creditFee" type="number" min="0" step="0.01" value="60"></label><label>Typical amount reused<input id="creditReuse" type="number" min="0" step="0.01" value="1200"></label><label>Desired payoff month<input id="creditTarget" type="month"></label><button class="primary span-2">Save Revolving Account</button></form></div></div>
+
+  <div class="toast" id="toast"></div>
+  <script src="app.js"></script>
+</body>
+</html>
