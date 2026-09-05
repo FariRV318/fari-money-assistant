@@ -179,92 +179,121 @@ $('#txnSearch').oninput=renderTransactions;$('#txnTypeFilter').onchange=renderTr
 $('#exportBtn').onclick=()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`fari-money-backup-${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(a.href)};$('#importFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{state={...cloneDefault(),...JSON.parse(r.result)};save();toast('Backup restored')}catch{alert('Invalid backup file')}};r.readAsText(f)};$('#resetBtn').onclick=()=>{if(confirm('This will permanently erase all local data. Continue?')){state=cloneDefault();save();toast('All data reset')}};
 
 function initSupabase(){
-  // Direct Supabase REST/Auth client. This removes the external CDN dependency,
-  // which can be blocked/cached on some Android browsers and was preventing login.
-  const SESSION_KEY='fariMoneySupabaseSession_v11';
+  // v12: use the exact official supabase-js pattern already proven in the user's
+  // Trading Dashboard. Keep a small REST fallback only if the CDN cannot load.
+  try{
+    if(window.supabase && typeof window.supabase.createClient==='function'){
+      sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{
+        auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false},
+        global:{fetch:fetch.bind(globalThis)}
+      });
+      window.__fariSupabaseMode='sdk';
+      return true;
+    }
+  }catch(err){console.warn('Supabase SDK init failed:',err)}
+
+  // REST fallback for rare CDN failures.
+  const SESSION_KEY='fariMoneySupabaseSession_v12';
   const listeners=[];
   const readSession=()=>{try{return JSON.parse(localStorage.getItem(SESSION_KEY)||'null')}catch{return null}};
   const writeSession=(session)=>{if(session)localStorage.setItem(SESSION_KEY,JSON.stringify(session));else localStorage.removeItem(SESSION_KEY)};
   const notify=(event,session)=>listeners.forEach(fn=>{try{fn(event,session)}catch{}});
-  // Supabase auth endpoints need the publishable key in `apikey`.
-  // Do NOT send the new sb_publishable_ key as a Bearer token before login.
-  const headers=(token,extra={})=>({
-    apikey:SUPABASE_PUBLISHABLE_KEY,
-    'Content-Type':'application/json',
-    ...(token?{Authorization:`Bearer ${token}`}:{ }),
-    ...extra
-  });
-  async function request(url,opts={},timeoutMs=12000){
-    const controller=new AbortController();
-    const timer=setTimeout(()=>controller.abort(),timeoutMs);
+  const headers=(token,extra={})=>({apikey:SUPABASE_PUBLISHABLE_KEY,'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{ }),...extra});
+  async function request(url,opts={},timeoutMs=15000){
+    const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),timeoutMs);
     try{
       const r=await fetch(url,{...opts,signal:controller.signal,cache:'no-store'});
-      let body=null;
-      try{body=await r.json()}catch{}
-      if(!r.ok){
-        return {data:null,error:{message:body?.msg||body?.message||body?.error_description||body?.error||`Request failed (${r.status})`},status:r.status};
-      }
+      let body=null;try{body=await r.json()}catch{}
+      if(!r.ok)return {data:null,error:{message:body?.msg||body?.message||body?.error_description||body?.error||`Request failed (${r.status})`},status:r.status};
       return {data:body,error:null,status:r.status};
-    }catch(err){
-      const message=err?.name==='AbortError'
-        ? 'Supabase connection timed out. Check your internet connection and try again.'
-        : `Connection failed: ${err?.message||'network error'}`;
-      return {data:null,error:{message},status:0};
-    }finally{clearTimeout(timer)}
+    }catch(err){return {data:null,error:{message:err?.name==='AbortError'?'Supabase did not respond within 15 seconds. Please check your connection and try again.':`Connection failed: ${err?.message||'network error'}`},status:0}}
+    finally{clearTimeout(timer)}
   }
   async function refreshIfNeeded(){
-    let session=readSession(); if(!session)return null;
-    const expiresAt=Number(session.expires_at||0)*1000;
-    if(expiresAt && Date.now()<expiresAt-60000)return session;
+    let session=readSession();if(!session)return null;
+    const expiresAt=Number(session.expires_at||0)*1000;if(expiresAt&&Date.now()<expiresAt-60000)return session;
     if(!session.refresh_token)return session;
     const res=await request(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`,{method:'POST',headers:headers(),body:JSON.stringify({refresh_token:session.refresh_token})});
-    if(res.error){writeSession(null);notify('SIGNED_OUT',null);return null}
-    session=res.data;writeSession(session);notify('TOKEN_REFRESHED',session);return session;
+    if(res.error){writeSession(null);notify('SIGNED_OUT',null);return null}session=res.data;writeSession(session);notify('TOKEN_REFRESHED',session);return session;
   }
   sb={
     auth:{
       async signInWithPassword({email,password}){
-        const url=`${SUPABASE_URL}/auth/v1/token?grant_type=password`;
-        const opts={method:'POST',headers:headers(),body:JSON.stringify({email,password})};
-        let res=await request(url,opts,12000);
-        // One clean retry helps on mobile when the first TLS/DNS connection is slow.
-        if(res.status===0) res=await request(url,opts,12000);
+        const res=await request(`${SUPABASE_URL}/auth/v1/token?grant_type=password`,{
+          method:'POST',headers:headers(),body:JSON.stringify({email,password})
+        });
         if(res.error)return {data:null,error:res.error};
-        writeSession(res.data);notify('SIGNED_IN',res.data);return {data:res.data,error:null};
+        writeSession(res.data);notify('SIGNED_IN',res.data);
+        return {data:{user:res.data.user,session:res.data},error:null};
       },
       async signUp({email,password,options={}}){
-        const payload={email,password,data:options.data||{}};
-        const res=await request(`${SUPABASE_URL}/auth/v1/signup`,{method:'POST',headers:headers(),body:JSON.stringify(payload)});
+        const res=await request(`${SUPABASE_URL}/auth/v1/signup`,{
+          method:'POST',headers:headers(),body:JSON.stringify({email,password,data:options.data||{}})
+        });
         if(res.error)return {data:null,error:res.error};
-        const session=res.data?.access_token?res.data:null;if(session){writeSession(session);notify('SIGNED_IN',session)}
+        const session=res.data?.access_token?res.data:null;
+        if(session){writeSession(session);notify('SIGNED_IN',session)}
         return {data:{user:res.data?.user||res.data,session},error:null};
       },
       async getSession(){const session=await refreshIfNeeded();return {data:{session},error:null}},
-      async getUser(){const session=await refreshIfNeeded();if(!session?.access_token)return {data:{user:null},error:null};const res=await request(`${SUPABASE_URL}/auth/v1/user`,{headers:headers(session.access_token)});return {data:{user:res.data},error:res.error}},
-      async signOut(){const session=readSession();if(session?.access_token)await request(`${SUPABASE_URL}/auth/v1/logout`,{method:'POST',headers:headers(session.access_token)});writeSession(null);notify('SIGNED_OUT',null);return {error:null}},
-      onAuthStateChange(fn){listeners.push(fn);return {data:{subscription:{unsubscribe(){const i=listeners.indexOf(fn);if(i>=0)listeners.splice(i,1)}}}}}
+      async getUser(){
+        const session=await refreshIfNeeded();
+        if(!session?.access_token)return {data:{user:null},error:null};
+        const res=await request(`${SUPABASE_URL}/auth/v1/user`,{headers:headers(session.access_token)});
+        return {data:{user:res.data},error:res.error};
+      },
+      async signOut(){
+        const session=readSession();
+        if(session?.access_token)await request(`${SUPABASE_URL}/auth/v1/logout`,{method:'POST',headers:headers(session.access_token)});
+        writeSession(null);notify('SIGNED_OUT',null);return {error:null};
+      },
+      onAuthStateChange(fn){
+        listeners.push(fn);
+        return {data:{subscription:{unsubscribe(){const i=listeners.indexOf(fn);if(i>=0)listeners.splice(i,1)}}}};
+      }
     },
     from(table){
       return {
         async upsert(row,{onConflict}={}){
-          const session=await refreshIfNeeded();if(!session?.access_token)return {data:null,error:{message:'Please log in again.'}};
+          const session=await refreshIfNeeded();
+          if(!session?.access_token)return {data:null,error:{message:'Please log in again.'}};
           const qs=onConflict?`?on_conflict=${encodeURIComponent(onConflict)}`:'';
-          return request(`${SUPABASE_URL}/rest/v1/${encodeURIComponent(table)}${qs}`,{method:'POST',headers:headers(session.access_token,{Prefer:'resolution=merge-duplicates,return=representation'}),body:JSON.stringify(row)});
+          return request(`${SUPABASE_URL}/rest/v1/${encodeURIComponent(table)}${qs}`,{
+            method:'POST',headers:headers(session.access_token,{Prefer:'resolution=merge-duplicates,return=representation'}),body:JSON.stringify(row)
+          });
         },
         select(cols){
-          let filter='';
-          return {eq(col,val){filter=`&${encodeURIComponent(col)}=eq.${encodeURIComponent(val)}`;return {async maybeSingle(){const session=await refreshIfNeeded();if(!session?.access_token)return {data:null,error:{message:'Please log in again.'}};const res=await request(`${SUPABASE_URL}/rest/v1/${encodeURIComponent(table)}?select=${encodeURIComponent(cols)}${filter}&limit=1`,{headers:headers(session.access_token,{Accept:'application/vnd.pgrst.object+json'})});if(res.status===406)return {data:null,error:null};return res}}}};
+          return {
+            eq(col,val){
+              const filter=`&${encodeURIComponent(col)}=eq.${encodeURIComponent(val)}`;
+              return {
+                async maybeSingle(){
+                  const session=await refreshIfNeeded();
+                  if(!session?.access_token)return {data:null,error:{message:'Please log in again.'}};
+                  const res=await request(`${SUPABASE_URL}/rest/v1/${encodeURIComponent(table)}?select=${encodeURIComponent(cols)}${filter}&limit=1`,{
+                    headers:headers(session.access_token,{Accept:'application/vnd.pgrst.object+json'})
+                  });
+                  if(res.status===406)return {data:null,error:null};
+                  return res;
+                }
+              };
+            }
+          };
         }
-      }
+      };
     }
   };
+  window.__fariSupabaseMode='rest';return true;
+}
+function withTimeout(promise,ms=18000){
+  return Promise.race([promise,new Promise((_,reject)=>setTimeout(()=>reject(new Error('Supabase login timed out. Please check your connection and try again.')),ms))]);
 }
 async function cloudSave(){if(!sb)return;const {data:{user}}=await sb.auth.getUser();if(!user)return;await sb.from('money_profiles').upsert({user_id:user.id,data:state,updated_at:new Date().toISOString()},{onConflict:'user_id'})}
 async function cloudLoad(){if(!sb)return;const {data:{user}}=await sb.auth.getUser();if(!user)return;const {data}=await sb.from('money_profiles').select('data').eq('user_id',user.id).maybeSingle();if(data?.data){state={...cloneDefault(),...data.data,account:{...state.account,...(data.data.account||{})}};localStorage.setItem(KEY,JSON.stringify(state));renderAll();toast('Cloud data loaded')}}
 $('#loginForm').onsubmit=async e=>{e.preventDefault();if(!sb){toast('Cloud connection is unavailable. Please refresh and try again.');return}const email=$('#loginEmail').value.trim(),password=$('#loginPassword').value;const {error}=await sb.auth.signInWithPassword({email,password});if(error){alert(error.message);return}state.account.email=email;localStorage.setItem(KEY,JSON.stringify(state));renderAccount();toast('Logged in ♥');cloudLoad().catch(()=>{})};
 $('#signupForm').onsubmit=async e=>{e.preventDefault();if(!sb){toast('Cloud connection is unavailable. Please refresh and try again.');return}const name=$('#signupName').value.trim()||'Fari',email=$('#signupEmail').value.trim(),password=$('#signupPassword').value;const {error}=await sb.auth.signUp({email,password,options:{data:{name}}});if(error){alert(error.message);return}state.account.name=name;state.account.email=email;localStorage.setItem(KEY,JSON.stringify(state));renderAccount();toast('Account created — check your email if confirmation is enabled')};
 
-$('#txnDate').value=new Date().toISOString().slice(0,10);$('#goalDeadline').value=new Date(Date.now()+30*86400000).toISOString().slice(0,10);$('#todayText').textContent=new Date().toLocaleDateString('en-AE',{weekday:'long',day:'numeric',month:'long',year:'numeric'});initSupabase();renderAll();if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').then(r=>r.update()).catch(()=>{});
+$('#txnDate').value=new Date().toISOString().slice(0,10);$('#goalDeadline').value=new Date(Date.now()+30*86400000).toISOString().slice(0,10);$('#todayText').textContent=new Date().toLocaleDateString('en-AE',{weekday:'long',day:'numeric',month:'long',year:'numeric'});initSupabase();renderAll();if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js?v=12.0.0').then(r=>r.update()).catch(()=>{});
 
 // Premium entry/login experience
 (function initEntryGate(){
@@ -285,7 +314,7 @@ $('#txnDate').value=new Date().toISOString().slice(0,10);$('#goalDeadline').valu
     if(!sb){if(status)status.textContent='Connection setup failed. Refresh the page and try again.';return}
     if(status){status.className='auth-status working';status.textContent='Signing you in…'};if(btn){btn.disabled=true;btn.textContent='Signing in…'}
     try{
-      const {error}=await sb.auth.signInWithPassword({email,password});
+      const {data,error}=await withTimeout(sb.auth.signInWithPassword({email,password}),18000);
       if(error){if(status){status.className='auth-status error';status.textContent=error.message};return}
       state.account.email=email;localStorage.setItem(KEY,JSON.stringify(state));
       sessionStorage.setItem('fariMoneyEntered','1');gate.classList.add('hidden');renderAccount();renderAll();toast('Welcome back ♥');
@@ -316,7 +345,7 @@ $('#txnDate').value=new Date().toISOString().slice(0,10);$('#goalDeadline').valu
   (async()=>{
     if(!sb)return;
     const {data:{session}}=await sb.auth.getSession();
-    if(session?.user){state.account.email=session.user.email||state.account.email;state.account.name=session.user.user_metadata?.name||state.account.name;localStorage.setItem(KEY,JSON.stringify(state));await cloudLoad();sessionStorage.setItem('fariMoneyEntered','1');gate.classList.add('hidden');renderAccount();}
+    if(session?.user){state.account.email=session.user.email||state.account.email;state.account.name=session.user.user_metadata?.name||state.account.name;localStorage.setItem(KEY,JSON.stringify(state));sessionStorage.setItem('fariMoneyEntered','1');gate.classList.add('hidden');renderAccount();renderAll();cloudLoad().catch(err=>console.warn('Cloud load:',err));}
     sb.auth.onAuthStateChange(async(event,session)=>{if(event==='SIGNED_OUT'){state.account.email='';localStorage.setItem(KEY,JSON.stringify(state));sessionStorage.removeItem('fariMoneyEntered');gate.classList.remove('hidden');actions.style.display='grid';loginPanel.classList.remove('open');createPanel.classList.remove('open');renderAccount();}else if(session?.user){state.account.email=session.user.email||state.account.email;localStorage.setItem(KEY,JSON.stringify(state));renderAccount();}});
   })();
 })();
